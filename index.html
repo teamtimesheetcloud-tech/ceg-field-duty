@@ -236,6 +236,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   let deviceId = LS.get("cfd.device");
   if (!deviceId) { deviceId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2))); LS.set("cfd.device", deviceId); }
   let token = LS.get("cfd.token") || "";
+  const isMobile = (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") ? navigator.userAgentData.mobile : /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
   let ip = "";
   (async () => { try { const c = new AbortController(); setTimeout(() => c.abort(), 4000); const r = await fetch("https://api.ipify.org?format=json", { signal: c.signal }); ip = (await r.json()).ip || ""; } catch (e) {} })();
 
@@ -244,7 +245,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   function busy(on) { busyCount += on ? 1 : -1; const b = busyCount > 0; $("#busy").hidden = !b; document.body.classList.toggle("busy", b); }
   async function call(action, extra) {
     if (!API || API.indexOf("http") !== 0) throw new Error("App is not configured: set the API link in config.js.");
-    const body = JSON.stringify(Object.assign({ action, token, deviceId, ip }, extra || {}));
+    const body = JSON.stringify(Object.assign({ action, token, deviceId, ip, mob: isMobile }, extra || {}));
     const res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body, redirect: "follow" });
     if (!res.ok) throw new Error("Network error (" + res.status + "). Check your connection.");
     const text = await res.text();
@@ -520,7 +521,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     return `<div class="item"><div class="row between"><b>${esc(nm(e.tech))} · ${esc(site(e.site)?.name)}</b><span class="pill red">${h} h</span></div>
       <div class="small mono">${dt(e.start)} → ${dt(e.end)}</div><div class="small">${esc(e.desc)}</div>${decideBtns("emergency", e.id, stage)}</div>`;
   }
-  const devPill = (d) => d === "approved" ? '<span class="pill green">Registered</span>' : d === "pending" ? '<span class="pill amber">New phone waiting</span>' : '<span class="pill">Not registered</span>';
+  const devPill = (d, n) => n === 2 ? '<span class="pill green">Phone + laptop</span>' : d === "approved" ? '<span class="pill green">Registered</span>' : d === "pending" ? '<span class="pill amber">New phone waiting</span>' : '<span class="pill">Not registered</span>';
   function teamTable(list) {
     return `<div class="tablewrap"><table><thead><tr><th>Name</th><th>Today</th><th>Mobile</th><th>Phone</th></tr></thead><tbody>${list.map((t) => {
       const a = assignmentFor(t.id, TODAY());
@@ -581,7 +582,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         <section class="card"><h2>Leave requests</h2>${lv.length ? lv.map((l) => leaveItem(l, "eng")).join("") : '<p class="empty">Nothing waiting.</p>'}</section>
         <section class="card"><h2>Emergency duty</h2>${em.length ? em.map((e) => emItem(e, "eng")).join("") : '<p class="empty">Nothing waiting.</p>'}</section>
       </div>
-      <section class="card"><h2>New phone logins</h2>${dv.length ? dv.map((u) => `<div class="visit"><span><b>${esc(u.name)}</b><br><span class="small muted">Tried to log in from a new phone</span></span><span class="row"><button class="btn sm go" data-act="devOk" data-id="${u.id}">Approve phone</button><button class="btn sm danger" data-act="devNo" data-id="${u.id}">Reject</button></span></div>`).join("") : '<p class="empty">No phone requests.</p>'}</section></div>`;
+      <section class="card"><h2>New phone logins</h2>${dv.length ? dv.map((u) => `<div class="visit"><span><b>${esc(u.name)}</b><br><span class="small muted">${u.role === "engineer" ? "Your second device (laptop or phone)" : "Tried to log in from a new phone"}</span></span><span class="row"><button class="btn sm go" data-act="devOk" data-id="${u.id}">Approve phone</button><button class="btn sm danger" data-act="devNo" data-id="${u.id}">Reject</button></span></div>`).join("") : '<p class="empty">No phone requests.</p>'}</section></div>`;
   }
   function engTeam() {
     const ss = sups();
@@ -593,7 +594,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
           <td>${t.role === "technician" ? `<select data-usup="${t.id}" aria-label="Supervisor">${ss.map((s) => `<option value="${s.id}" ${s.id === t.sup ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>` : ""}</td>
           <td><input class="mono" value="${esc(t.mobile)}" data-umobile="${t.id}" aria-label="Mobile" style="width:140px"></td>
           <td><span class="row" style="flex-wrap:nowrap;gap:6px">${t.pin ? '<span class="pill green">Set</span>' : '<span class="pill red">Not set</span>'}<input data-pinfor="${t.id}" inputmode="numeric" maxlength="4" placeholder="New" style="width:70px" aria-label="New PIN"><button class="btn sm" data-act="setPin" data-id="${t.id}">Set</button></span></td>
-          <td>${devPill(t.device)}</td>
+          <td>${devPill(t.device, t.devices)}</td>
           <td><span class="row" style="flex-wrap:nowrap;gap:6px"><button class="btn sm" data-act="devReset" data-id="${t.id}">Reset phone</button>${t.role !== "engineer" ? `<button class="btn sm danger" data-act="deactivate" data-id="${t.id}">Remove</button>` : ""}</span></td></tr>`).join("")}
         </tbody></table></div>
         <form class="form-inline" id="fUser"><label class="field"><span>New person</span><input id="nuName" required placeholder="Full name"></label>
@@ -602,7 +603,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
           <label class="field"><span>4-digit PIN</span><input id="nuPin" inputmode="numeric" maxlength="4" placeholder="••••"></label>
           <label class="field"><span>Supervisor</span><select id="nuSup">${ss.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
           <button class="btn primary">Add</button></form>
-        <p class="small muted">Only the Engineer can add people. The first login registers the phone; any other phone needs your approval. "Reset phone" lets the next login register a new phone.</p></section></div>`;
+        <p class="small muted">Only the Engineer can add people. The first login registers the phone; any other phone needs your approval. Supervisors and technicians can log in from a mobile phone only; the Engineer can use a phone and a laptop. "Reset phone" lets the next login register a new device.</p></section></div>`;
   }
   function engSites() {
     const ss = sups();
