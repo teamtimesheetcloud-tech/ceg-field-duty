@@ -216,7 +216,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
 (function () {
   "use strict";
   /* ================= basics ================= */
-  const API = (window.CFD_API || "").trim();
+  const API = (window.CFD_API || "").trim().replace(/\/macros\/u\/\d+\/s\//, "/macros/s/").replace(/\/(dev|exec)\/?(\?.*)?$/, "/exec");
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pad = (n) => String(n).padStart(2, "0");
@@ -247,7 +247,13 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const body = JSON.stringify(Object.assign({ action, token, deviceId, ip }, extra || {}));
     const res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body, redirect: "follow" });
     if (!res.ok) throw new Error("Network error (" + res.status + "). Check your connection.");
-    return res.json();
+    const text = await res.text();
+    try { return JSON.parse(text); }
+    catch (e) {
+      if (/API is running/.test(text)) throw new Error("The server link in config.js is not the Web app /exec link, or the request was redirected. Copy the link again from Apps Script → Deploy → Manage deployments.");
+      if (/<html|<!DOCTYPE/i.test(text)) throw new Error("The server asked for a Google sign-in. In Apps Script → Deploy → Manage deployments, set 'Who has access' to Anyone.");
+      throw new Error("Unexpected reply from the server. Please contact the Engineer.");
+    }
   }
   async function api(action, payload, opt) {
     opt = opt || {};
