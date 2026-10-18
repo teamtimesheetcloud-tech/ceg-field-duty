@@ -174,6 +174,69 @@ dialog::backdrop { background: rgba(8, 18, 30, .6); }
   main { padding: 0; }
   .qrgrid { grid-template-columns: repeat(3, 1fr); }
 }
+/* chat */
+.chatwrap { display: grid; grid-template-columns: 300px minmax(0,1fr); height: calc(100dvh - 190px); min-height: 440px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.clist { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.clist > header { padding: 10px 12px; display: flex; gap: 8px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line); }
+.clist > header h2 { font-size: 1.1rem; }
+.crooms { overflow-y: auto; flex: 1; }
+.csec { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; padding: 12px 12px 4px; }
+.croom { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 40px minmax(0,1fr) auto; gap: 1px 10px; align-items: center; padding: 9px 12px; cursor: pointer; border-bottom: 1px solid var(--line); }
+.croom:hover { background: var(--sunk); } .croom[aria-current="true"] { background: var(--blue-soft); }
+.croom:focus-visible { outline: 2px solid var(--blue); outline-offset: -2px; }
+.cav { grid-row: span 2; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: .82rem; color: #fff; background: #5A6B7F; }
+.cav.grp { background: linear-gradient(135deg, #115FA0, #69BD45); }
+.croom .cn { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.croom .ct { font-size: .72rem; color: var(--muted); font-family: var(--f-mono); }
+.croom .cp { font-size: .84rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cbadge { min-width: 20px; height: 20px; border-radius: 10px; background: var(--brand-green); color: #0B2E12; font-size: .72rem; font-weight: 700; display: inline-grid; place-items: center; padding: 0 6px; justify-self: end; }
+.clock { font-size: .66rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--blue); }
+.cpick { padding: 10px 12px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; background: var(--sunk); }
+.cpick select { flex: 1; min-width: 0; }
+.cconv { display: flex; flex-direction: column; min-height: 0; background: var(--bg); }
+.cconv > header { background: var(--surface); padding: 9px 12px; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid var(--line); }
+.cconv > header .t { min-width: 0; } .cconv > header b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cconv > header small { color: var(--muted); }
+.cback { display: none; border: 0; background: none; font-size: 1.5rem; cursor: pointer; padding: 0 4px; color: var(--blue); }
+.cmsgs { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.cday { align-self: center; font-size: .74rem; background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 12px; padding: 2px 10px; margin: 6px 0; }
+.csys { align-self: center; font-size: .8rem; color: var(--muted); text-align: center; max-width: 85%; }
+.cb { max-width: min(80%, 520px); border-radius: 12px; padding: 7px 10px 5px; background: var(--surface); border: 1px solid var(--line); align-self: flex-start; overflow-wrap: anywhere; white-space: pre-wrap; }
+.cb.me { align-self: flex-end; background: var(--green-soft); border-color: transparent; }
+.cb .cw { font-size: .78rem; font-weight: 700; color: var(--blue); white-space: normal; }
+.cb .cm { font-size: .68rem; color: var(--muted); text-align: right; font-family: var(--f-mono); margin-top: 2px; white-space: normal; }
+.ccomp { background: var(--surface); border-top: 1px solid var(--line); padding: 9px 10px; display: flex; flex-direction: column; gap: 8px; }
+.cmode { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.cseg { display: inline-flex; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.cseg button { border: 0; background: none; padding: 5px 14px; font-weight: 600; cursor: pointer; color: var(--muted); font-size: .86rem; }
+.cseg button[aria-pressed="true"] { background: var(--blue); color: #fff; }
+.chint { font-size: .8rem; color: var(--muted); }
+.csend { display: flex; gap: 8px; }
+.csend textarea { flex: 1; min-width: 0; resize: none; border-radius: 20px; padding: 9px 14px; background: var(--bg); min-height: 42px; max-height: 120px; }
+.csend button { border: 0; background: var(--brand-green); color: #0B2E12; font-weight: 700; border-radius: 20px; padding: 0 18px; cursor: pointer; }
+.cempty { margin: auto; text-align: center; color: var(--muted); max-width: 320px; padding: 20px; }
+@media (max-width: 760px) {
+  .chatwrap { grid-template-columns: 1fr; height: calc(100dvh - 165px); border-radius: 10px; }
+  .chatwrap.open .clist { display: none; } .chatwrap:not(.open) .cconv { display: none; }
+  .cback { display: block; } .clist { border-right: 0; }
+}
+/* notifications */
+.bell { position: relative; border: 1px solid #C9D6E3; background: #fff; color: #115FA0; border-radius: 50%; width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer; flex: none; padding: 0 !important; }
+.bell svg { width: 19px; height: 19px; }
+.bell .cnt { position: absolute; top: -5px; right: -5px; min-width: 18px; height: 18px; border-radius: 9px; background: #C3352B; color: #fff; font-size: .66rem; font-weight: 700; display: grid; place-items: center; padding: 0 4px; }
+.npanel { position: fixed; z-index: 65; right: max(12px, env(safe-area-inset-right, 0px)); top: calc(64px + env(safe-area-inset-top, 0px)); width: min(370px, calc(100vw - 24px)); max-height: 72vh; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(8,18,30,.2); }
+.npanel > header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); }
+.npanel > header b { font-family: var(--f-display); font-size: 1.05rem; }
+.npanel > header button { border: 0; background: none; color: var(--blue); font-weight: 600; cursor: pointer; font-size: .85rem; }
+.nitem { all: unset; box-sizing: border-box; width: 100%; display: grid; grid-template-columns: 34px minmax(0,1fr); gap: 2px 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.nitem:hover { background: var(--sunk); } .nitem.unread { background: var(--blue-soft); }
+.nitem .ic { grid-row: span 2; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: .64rem; font-weight: 700; color: #fff; background: #115FA0; }
+.nitem .ic.job { background: #B97A06; } .nitem .ic.roster { background: #3F8F27; } .nitem .ic.approval { background: #7A4FB5; } .nitem .ic.location { background: #C3352B; } .nitem .ic.device { background: #5A6B7F; }
+.nitem .tx { font-size: .9rem; overflow-wrap: anywhere; } .nitem .tt { font-size: .72rem; color: var(--muted); font-family: var(--f-mono); }
+.banner { position: fixed; z-index: 75; left: 50%; transform: translateX(-50%); top: calc(10px + env(safe-area-inset-top, 0px)); width: min(430px, calc(100vw - 24px)); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-left: 5px solid #69BD45; border-radius: 10px; box-shadow: 0 10px 30px rgba(8,18,30,.22); padding: 10px 14px; cursor: pointer; }
+.banner b { display: block; font-size: .76rem; color: var(--blue); text-transform: uppercase; letter-spacing: .06em; }
+@media (prefers-reduced-motion: no-preference) { .banner { animation: drop .25s ease-out; } @keyframes drop { from { transform: translate(-50%, -16px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } } }
+.pushcard { border-color: #69BD45; background: linear-gradient(135deg, var(--surface), var(--green-soft)); }
 footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
 </style>
 </head>
@@ -196,7 +259,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   <header class="top">
     <div class="wrap">
       <div class="brand"><img class="logo" src="logo.png" alt="Cloud Energi"><span class="sep" aria-hidden="true"></span><div><h1>CEG Field Duty</h1><p id="roleLine"></p></div></div>
-      <div class="acct"><div class="who" id="whoBox"></div><button data-act="account">Account</button></div>
+      <div class="acct"><div class="who" id="whoBox"></div><button class="bell" id="bell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="cnt" id="bellCnt" hidden></span></button><button data-act="account">Account</button></div>
     </div>
   </header>
   <div class="tabsbar"><div class="wrap"><nav class="tabs" id="tabs" role="tablist"></nav></div></div>
@@ -207,6 +270,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
 <dialog id="dScan"><div class="dlg" id="dScanBody"></div></dialog>
 <dialog id="dAcct"><div class="dlg" id="dAcctBody"></div></dialog>
 <div class="toast" id="toast" hidden></div>
+<div class="npanel" id="npanel" hidden></div>
+<div class="banner" id="banner" hidden></div>
 
 <script src="config.js"></script>
 <script src="lib/html5-qrcode.min.js"></script>
@@ -272,7 +337,13 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
     finally { busy(false); }
   }
-  function applyState(st) { S = st; viewer = st.me; lastSync = new Date(); render(); }
+  let pendingLink = null;
+  try { const h = decodeURIComponent((location.hash || "").slice(1)); if (h) pendingLink = h; } catch (e) {}
+  function applyState(st) {
+    S = st; viewer = st.me; lastSync = new Date();
+    if (pendingLink) { const l = pendingLink; pendingLink = null; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} goLink(l, true); }
+    render(); checkNewNotifs(); maybeInitPush();
+  }
 
   /* ================= login ================= */
   function showLogin(msg) {
@@ -395,15 +466,15 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
 
   /* ================= navigation ================= */
   const TABS = {
-    engineer: [["overview", "Overview"], ["approvals", "Approvals"], ["jobs", "Jobs"], ["messages", "Messages"], ["board", "Roster board"], ["team", "Team"], ["sites", "Sites & slots"], ["qr", "QR codes"], ["timesheets", "Timesheets"], ["kpi", "KPI"], ["logs", "Logs"]],
-    supervisor: [["today", "Site visits"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["approvals", "Approvals"], ["messages", "Messages"], ["board", "Roster board"], ["team", "My team"]],
-    technician: [["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Messages"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
+    engineer: [["overview", "Overview"], ["approvals", "Approvals"], ["jobs", "Jobs"], ["messages", "Chat"], ["board", "Roster board"], ["team", "Team"], ["sites", "Sites & slots"], ["qr", "QR codes"], ["timesheets", "Timesheets"], ["kpi", "KPI"], ["logs", "Logs"]],
+    supervisor: [["today", "Site visits"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["approvals", "Approvals"], ["messages", "Chat"], ["board", "Roster board"], ["team", "My team"]],
+    technician: [["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Chat"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
   };
   let tab = null;
-  const ui = { boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
+  const ui = { chatOpen: null, chatMode: "group", chatTo: "", chatPick: false, chatOld: null, boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
   function renderTabs() {
     const u = me();
-    const cnt = { approvals: pendingFor(u.role, u.id), messages: unreadCount(u.id), jobs: u.role === "technician" ? S.jobs.filter((j) => j.assignee === u.id && j.status === "open").length : 0 };
+    const cnt = { approvals: pendingFor(u.role, u.id), messages: chatUnreadTotal(), jobs: u.role === "technician" ? S.jobs.filter((j) => j.assignee === u.id && j.status === "open").length : 0 };
     $("#tabs").innerHTML = TABS[u.role].map(([k, l]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${l}${cnt[k] ? `<span class="badge">${cnt[k]}</span>` : ""}</button>`).join("");
   }
   $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; tab = b.dataset.tab; LS.set("cfd.tab", tab); ui.draft = null; render(); window.scrollTo(0, 0); });
@@ -535,7 +606,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const groups = supSlots(viewer).filter((s) => s.sites.length && s.shift !== "Night").map((s) => { const opts = s.sites.filter((x) => !plan.includes(x)); return opts.length ? `<optgroup label="${esc(s.tag || s.name)}">${opts.map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>` : ""; }).join("");
     const list = plan.map((sid) => { const x = site(sid); const v = visits.find((q) => q.site === sid);
       return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ Scanned ${v.time}</span>` : `<span class="row"><button class="btn sm primary" data-act="scan" data-id="${sid}">Scan QR</button><button class="btn sm" data-act="supRemove" data-id="${sid}" aria-label="Remove ${esc(x?.name)}">✕</button></span>`}</div>`; }).join("");
-    return `<div class="stack narrow"><div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>Site visits</h2><p class="sub">${visits.length} scanned · ${plan.length} added today · target ${S.supTarget}</p></div>
+    return `<div class="stack narrow">${pushCard()}<div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>Site visits</h2><p class="sub">${visits.length} scanned · ${plan.length} added today · target ${S.supTarget}</p></div>
       ${openJobsCard()}
       <form class="card" id="fSupAdd"><h2>Add a site</h2><p class="small muted">Add the site you are going to, then scan its QR code when you reach it. Location must be within ${S.radius} m.</p>
         <div class="form-inline"><label class="field"><span>Site</span><select id="supSite" required><option value="">Select site</option>${groups}</select></label><button class="btn primary">Add site</button></div></form>
@@ -548,7 +619,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const pendR = Object.values(S.rosters).filter((r) => r.status === "submitted").length;
     const loc = S.logs.filter((l) => l.type === "location" && l.at.slice(0, 10) >= addDays(TODAY(), -7)).length;
     const onDutyNow = S.duties.filter((d) => (d.date === TODAY() || (d.date === addDays(TODAY(), -1) && !d.end)) && d.start && !d.end).length;
-    return `<div class="stack">
+    return `<div class="stack">${pushCard()}
       <div class="tiles"><div class="tile"><b>${pendingFor("engineer")}</b><span>Waiting your approval</span></div>
         <div class="tile"><b>${onDutyNow}</b><span>On duty now</span></div>
         <div class="tile${loc ? " alert" : ""}"><b>${loc}</b><span>Wrong-location alerts (7 days)</span></div>
@@ -753,26 +824,191 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       <section class="card"><div class="row between"><h2>Jobs</h2><select id="jobFilter" aria-label="Filter"><option value="active" ${ui.jobFilter === "active" ? "selected" : ""}>Active</option><option value="closed" ${ui.jobFilter === "closed" ? "selected" : ""}>Closed</option><option value="all" ${ui.jobFilter === "all" ? "selected" : ""}>All</option></select></div>
         ${list.length ? list.map((j) => jobItem(j, "view")).join("") : '<p class="empty">No jobs.</p>'}</section></div>`;
   }
+  /* ================= chat ================= */
+  const COLORS = ["#115FA0", "#7A4FB5", "#2E8B57", "#B5651D", "#1E8A8A", "#C2410C", "#4F6BB5", "#8A6D1E", "#A33B6B", "#3F8F27"];
+  const colorOf = (id) => { const i = S.users.findIndex((u) => u.id === id); return COLORS[(i < 0 ? 0 : i) % COLORS.length]; };
+  const initials = (n) => String(n || "?").split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const privRoom = (a, b) => "p:" + [a, b].sort().join("|");
+  const otherOf = (room) => room.slice(2).split("|").find((x) => x !== viewer);
+  const roleName = (u) => u ? (u.role === "engineer" ? "Engineer" : u.role === "supervisor" ? "Supervisor" : "Technician") : "";
+  const chatTime = (at) => { const d = String(at).slice(0, 10); return d === TODAY() ? String(at).slice(11, 16) : fmtD(d, { day: "numeric", month: "short" }); };
+  function roomMsgs(room) { return S.chat.filter((m) => m.room === room); }
+  function roomUnread(room) { const r = S.chatRead[room] || ""; return S.chat.filter((m) => m.room === room && m.by !== viewer && m.at > r).length; }
+  function chatRooms() {
+    const set = new Set(S.chat.map((m) => m.room).filter((r) => r.startsWith("p:")));
+    if (ui.chatOpen && ui.chatOpen.startsWith("p:")) set.add(ui.chatOpen);
+    const last = (r) => { const ms = roomMsgs(r); return ms.length ? ms[ms.length - 1].at : "9999"; };
+    return [...set].filter((r) => user(otherOf(r))).sort((a, b) => last(b).localeCompare(last(a)));
+  }
+  function chatUnreadTotal() { return ["group", ...chatRooms()].reduce((a, r) => a + roomUnread(r), 0); }
+  function chatAvatar(room) { if (room === "group") return '<span class="cav grp" aria-hidden="true">CEG</span>'; const o = user(otherOf(room)); return `<span class="cav" style="background:${colorOf(o.id)}" aria-hidden="true">${esc(initials(o.name))}</span>`; }
+  function chatListHTML() {
+    const row = (room) => { const ms = roomMsgs(room); const l = ms[ms.length - 1]; const u = roomUnread(room);
+      const name = room === "group" ? "CEG Team" : nm(otherOf(room));
+      const pv = l ? (room === "group" ? `<b>${esc(l.by === viewer ? "You" : nm(l.by).split(" ")[0])}:</b> ` : l.by === viewer ? "You: " : "") + esc(l.text) : "<i>No messages yet</i>";
+      return `<button class="croom" data-room="${esc(room)}" aria-current="${ui.chatOpen === room}">${chatAvatar(room)}<span class="cn">${esc(name)}</span><span class="ct">${l ? chatTime(l.at) : ""}</span><span class="cp">${pv}</span>${u ? `<span class="cbadge">${u}</span>` : room === "group" ? "<span></span>" : '<span class="clock">Private</span>'}</button>`; };
+    const pr = chatRooms();
+    const old = S.threads.filter((t) => t.msgs.length && t.msgs[t.msgs.length - 1].at.slice(0, 10) >= addDays(TODAY(), -90));
+    return `<div class="csec">Group</div>${row("group")}<div class="csec">Private chats</div>${pr.length ? pr.map(row).join("") : '<p class="small muted" style="padding:8px 12px">No private chats yet. Tap “+ Private”.</p>'}
+      ${old.length ? `<div class="csec">Earlier messages · read only</div>${old.map((t) => `<button class="croom" data-old="${t.id}" aria-current="${ui.chatOld === t.id}"><span class="cav" aria-hidden="true">✉</span><span class="cn">${esc(t.subject || "(no subject)")}</span><span class="ct">${chatTime(t.msgs[t.msgs.length - 1].at)}</span><span class="cp">${esc([t.from, ...t.to].filter((x) => x !== viewer).map(nm).join(", "))}</span><span></span></button>`).join("")}` : ""}`;
+  }
+  function chatMsgsHTML(room) {
+    const ms = roomMsgs(room); let lastDay = "";
+    const body = ms.map((m) => { const d = m.at.slice(0, 10); const day = d !== lastDay ? `<div class="cday">${fmtD(d)}</div>` : ""; lastDay = d; const mine = m.by === viewer; const u = user(m.by);
+      return day + `<div class="cb${mine ? " me" : ""}">${!mine && room === "group" ? `<div class="cw" style="color:${colorOf(m.by)}">${esc(u ? u.name : "—")} · <span style="font-weight:500">${roleName(u)}</span></div>` : ""}${esc(m.text)}<div class="cm">${m.at.slice(11, 16)}</div></div>`; }).join("");
+    return (room !== "group" && !ms.length ? `<p class="csys">Private chat with ${esc(nm(otherOf(room)))}. Only the two of you can see these messages.</p>` : "") + (body || (room === "group" ? '<p class="csys">No messages yet. Say hello to the team.</p>' : ""));
+  }
   function messagesView() {
-    const u = me();
-    const mine = S.threads.slice().sort((a, b) => b.msgs[b.msgs.length - 1].at.localeCompare(a.msgs[a.msgs.length - 1].at));
-    let opts;
-    if (u.role === "technician") opts = `${u.sup ? `<option value="${u.sup}">My supervisor – ${esc(nm(u.sup))}</option>` : ""}<option value="${engId()}">Engineer – ${esc(nm(engId()))}</option>${u.sup ? `<option value="${u.sup},${engId()}">Both</option>` : ""}`;
-    else if (u.role === "supervisor") opts = `<option value="${engId()}">Engineer – ${esc(nm(engId()))}</option>${techs(viewer).map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}`;
-    else opts = S.users.filter((x) => x.id !== viewer).map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
-    const thread = (t) => {
-      const open = ui.openThread === t.id; const last = t.msgs[t.msgs.length - 1]; const unread = t.unread.includes(viewer);
-      const who = [t.from, ...t.to].filter((x) => x !== viewer).map(nm).join(", ");
-      return `<div class="item"><button class="threadhead" data-act="openThread" data-id="${t.id}" aria-expanded="${open}"><span><b>${esc(t.subject || "(no subject)")}</b>${unread ? ' <span class="pill red">New</span>' : ""}<br><span class="small muted">With ${esc(who)} · ${dt(last.at)}</span></span><span class="muted">${open ? "▲" : "▼"}</span></button>
-        ${open ? `<div class="msgs">${t.msgs.map((m) => `<div class="msg${m.by === viewer ? " me" : ""}"><span class="small muted">${esc(nm(m.by))} · ${dt(m.at)}</span><div>${esc(m.text)}</div></div>`).join("")}</div>
-          <form class="form-inline" data-reply="${t.id}"><input required placeholder="Write a reply" aria-label="Reply" style="flex:1 1 200px"><button class="btn primary">Send</button></form>` : `<div class="small muted">${esc(last.text.slice(0, 120))}</div>`}</div>`;
-    };
-    return `<div class="cols2"><form class="card" id="fMsg"><h2>New message</h2>
-        <label class="field"><span>To</span><select id="msgTo" required>${opts}</select></label>
-        <label class="field"><span>Subject</span><input id="msgSub" placeholder="e.g. Spare parts needed at KHK"></label>
-        <label class="field"><span>Message</span><textarea id="msgText" required placeholder="Write your comment"></textarea></label>
-        <button class="btn primary">Send</button></form>
-      <section class="card"><h2>Conversations</h2>${mine.length ? mine.map(thread).join("") : '<p class="empty">No messages yet.</p>'}</section></div>`;
+    if (ui.chatOld) { const t = S.threads.find((x) => x.id === ui.chatOld); if (!t) ui.chatOld = null; }
+    if (!ui.chatOpen && !ui.chatOld && window.matchMedia("(min-width: 761px)").matches) ui.chatOpen = "group";
+    const room = ui.chatOpen; const opened = !!(room || ui.chatOld);
+    let conv;
+    if (ui.chatOld) {
+      const t = S.threads.find((x) => x.id === ui.chatOld);
+      conv = `<header><button class="cback" data-act="chatBack" aria-label="Back to chats">‹</button><span class="cav" aria-hidden="true">✉</span><div class="t"><b>${esc(t.subject || "(no subject)")}</b><small>Earlier message · read only</small></div></header>
+        <div class="cmsgs">${t.msgs.map((m) => `<div class="cb${m.by === viewer ? " me" : ""}">${m.by !== viewer ? `<div class="cw">${esc(nm(m.by))}</div>` : ""}${esc(m.text)}<div class="cm">${dt(m.at)}</div></div>`).join("")}</div>`;
+    } else if (room) {
+      const other = room === "group" ? null : user(otherOf(room));
+      const opts = S.users.filter((x) => x.id !== viewer).map((x) => `<option value="${x.id}" ${x.id === ui.chatTo ? "selected" : ""}>${esc(x.name)} – ${roleName(x)}</option>`).join("");
+      conv = `<header><button class="cback" data-act="chatBack" aria-label="Back to chats">‹</button>${chatAvatar(room)}<div class="t"><b>${room === "group" ? "CEG Team" : esc(other ? other.name : "—")}</b><small>${room === "group" ? S.users.length + " members · everyone can see" : esc(roleName(other)) + " · private, only you two can see"}</small></div></header>
+        <div class="cmsgs" id="cmsgs">${chatMsgsHTML(room)}</div>
+        <form class="ccomp" id="fChat">
+          ${room === "group" ? `<div class="cmode"><div class="cseg" role="group" aria-label="Send to"><button type="button" data-cmode="group" aria-pressed="${ui.chatMode === "group"}">Group</button><button type="button" data-cmode="private" aria-pressed="${ui.chatMode === "private"}">Private</button></div>
+            ${ui.chatMode === "private" ? `<select id="chatTo" aria-label="Private to"><option value="">Choose person</option>${opts}</select><span class="chint">Goes to a private room</span>` : '<span class="chint">Everyone in CEG Team will see it</span>'}</div>` : ""}
+          <div class="csend"><textarea id="chatTxt" rows="1" placeholder="${room === "group" ? (ui.chatMode === "private" ? "Private message" : "Message the team") : "Message " + esc(other ? other.name.split(" ")[0] : "")}" aria-label="Message"></textarea><button>Send</button></div>
+        </form>`;
+    } else conv = '<div class="cempty"><h3>Select a chat</h3><p>Open CEG Team to talk to everyone, or start a private chat.</p></div>';
+    setTimeout(() => { const m = $("#cmsgs"); if (m) m.scrollTop = m.scrollHeight; }, 0);
+    return `<div class="chatwrap${opened ? " open" : ""}" id="chatwrap"><aside class="clist"><header><h2>Chats</h2><button class="btn sm" data-act="chatNew" type="button">+ Private</button></header>
+      ${ui.chatPick ? `<div class="cpick"><select id="chatPickWho" aria-label="Choose person"><option value="">Choose a person</option>${S.users.filter((x) => x.id !== viewer).map((x) => `<option value="${x.id}">${esc(x.name)} – ${roleName(x)}</option>`).join("")}</select><button class="btn sm primary" data-act="chatPickGo" type="button">Open</button></div>` : ""}
+      <div class="crooms" id="crooms">${chatListHTML()}</div></aside><section class="cconv">${conv}</section></div>`;
+  }
+  function refreshChatParts() {
+    if (tab !== "messages") return;
+    const l = $("#crooms"); if (l) l.innerHTML = chatListHTML();
+    const m = $("#cmsgs"); if (m && ui.chatOpen) { const atBottom = m.scrollHeight - m.scrollTop - m.clientHeight < 80; m.innerHTML = chatMsgsHTML(ui.chatOpen); if (atBottom) m.scrollTop = m.scrollHeight; }
+    renderTabs(); renderBell();
+  }
+  function markRoomRead(room) {
+    if (!room || !roomUnread(room)) return;
+    S.chatRead[room] = S.now || localDT(new Date()); S.notifs.forEach((n) => { if (n.type === "msg" && n.link === "chat:" + room) n.read = true; });
+    call("chatRead", { payload: { room } }).catch(() => {});
+  }
+  function openRoom(room) { ui.chatOpen = room; ui.chatOld = null; ui.chatMode = "group"; ui.chatTo = ""; ui.chatPick = false; markRoomRead(room); render(); if (window.matchMedia("(min-width: 761px)").matches) $("#chatTxt")?.focus(); }
+  let chatTimer = null;
+  function chatLoop() {
+    clearTimeout(chatTimer);
+    chatTimer = setTimeout(async () => {
+      if (S && tab === "messages" && !document.hidden) {
+        try {
+          const since = S.chat.length ? S.chat[S.chat.length - 1].at : "";
+          const r = await call("chatPoll", { payload: { since } });
+          if (r && r.ok) {
+            const have = new Set(S.chat.map((m) => m.id)); const add = r.chat.filter((m) => !have.has(m.id));
+            if (add.length) { S.chat = S.chat.concat(add).sort((a, b) => a.at.localeCompare(b.at)); if (ui.chatOpen && add.some((m) => m.room === ui.chatOpen && m.by !== viewer) && !document.hidden) markRoomRead(ui.chatOpen); refreshChatParts(); if (add.some((m) => m.by !== viewer)) chime(); }
+            const unreadNow = S.notifs.filter((n) => !n.read).length;
+            if (r.unread > unreadNow) { const t = $("#chatTxt"); if (!t || !t.value) api("refresh", {}, { silent: true, quietError: true }); }
+          } else if (r && r.session) logoutLocal(r.error);
+        } catch (e) {}
+      }
+      chatLoop();
+    }, 8000);
+  }
+  chatLoop();
+
+  /* ================= notifications ================= */
+  const NT = { msg: ["MSG", "New message"], roster: ["RST", "Roster"], device: ["DEV", "New device"], location: ["LOC", "Wrong location"], approval: ["APR", "Approval needed"], job: ["JOB", "New job assigned"] };
+  let audioCtx = null;
+  function chime() {
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = "sine"; o.frequency.setValueAtTime(880, audioCtx.currentTime); o.frequency.setValueAtTime(1320, audioCtx.currentTime + 0.12); g.gain.setValueAtTime(0.0001, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.22, audioCtx.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35); o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.4); } catch (e) {}
+    try { navigator.vibrate && navigator.vibrate([120, 60, 120]); } catch (e) {}
+  }
+  function renderBell() {
+    if (!S) return;
+    const list = S.notifs || []; const u = list.filter((n) => !n.read).length;
+    const c = $("#bellCnt"); c.textContent = u > 9 ? "9+" : u; c.hidden = !u;
+    $("#npanel").innerHTML = `<header><b>Notifications</b><button type="button" data-act="nAll">Mark all read</button></header>${list.length ? list.map((n) => `<button class="nitem${n.read ? "" : " unread"}" data-notif="${n.id}"><span class="ic ${n.type}" aria-hidden="true">${(NT[n.type] || ["•"])[0]}</span><span class="tx">${esc(n.text)}</span><span class="tt">${dt(n.at)}</span></button>`).join("") : '<p class="empty" style="padding:16px">No notifications yet.</p>'}`;
+  }
+  function checkNewNotifs() {
+    renderBell();
+    const key = "cfd.notifSeen." + viewer; const seen = LS.get(key) || "";
+    const fresh = (S.notifs || []).filter((n) => !n.read && n.at > seen);
+    const newest = (S.notifs || []).reduce((m, n) => (n.at > m ? n.at : m), seen);
+    if (newest !== seen) LS.set(key, newest);
+    if (seen && fresh.length) { const n = fresh[0]; if (!(n.type === "msg" && tab === "messages" && n.link === "chat:" + ui.chatOpen)) showBanner(n); }
+  }
+  function showBanner(n) {
+    const b = $("#banner"); b.innerHTML = `<b>${esc((NT[n.type] || ["", "Notification"])[1])}</b>${esc(n.text)}`; b.dataset.id = n.id; b.hidden = false; chime();
+    clearTimeout(showBanner.h); showBanner.h = setTimeout(() => (b.hidden = true), 6000);
+  }
+  function goLink(link, quiet) {
+    const u = me(); if (!u || !link) return;
+    if (link.startsWith("chat:")) { tab = "messages"; ui.chatOpen = link.slice(5); ui.chatOld = null; markRoomRead(ui.chatOpen); }
+    else if (TABS[u.role].some((x) => x[0] === link)) tab = link;
+    LS.set("cfd.tab", tab); if (!quiet) { render(); window.scrollTo(0, 0); }
+  }
+  function openNotif(id) {
+    const n = (S.notifs || []).find((x) => x.id === id); $("#npanel").hidden = true; $("#banner").hidden = true; if (!n) return;
+    if (!n.read) { n.read = true; call("notifRead", { payload: { ids: [id] } }).catch(() => {}); }
+    goLink(n.link); renderBell();
+  }
+
+  /* ================= phone push (Firebase) ================= */
+  const FB = window.CFD_FIREBASE || {}; const VAPID = window.CFD_VAPID || "";
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const pushConfigured = () => !!(FB.apiKey && FB.projectId && FB.messagingSenderId && FB.appId && VAPID);
+  const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  let fbMessaging = null, pushInitTried = false;
+  function loadScript(src) { return new Promise((ok, no) => { if (document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("Could not load " + src)); document.head.appendChild(s); }); }
+  async function fbInit() {
+    if (fbMessaging) return fbMessaging;
+    await loadScript("https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js");
+    await loadScript("https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js");
+    if (!firebase.apps.length) firebase.initializeApp(FB);
+    fbMessaging = firebase.messaging();
+    fbMessaging.onMessage((payload) => { api("refresh", {}, { silent: true, quietError: true }); });
+    return fbMessaging;
+  }
+  async function getPushToken() {
+    const reg = await navigator.serviceWorker.register("firebase-messaging-sw.js");
+    await navigator.serviceWorker.ready;
+    const m = await fbInit();
+    return m.getToken({ vapidKey: VAPID, serviceWorkerRegistration: reg });
+  }
+  async function enablePush() {
+    if (!pushConfigured()) { toast("Notifications are not set up yet (Firebase settings missing in config.js).", true); return; }
+    if (!pushSupported()) { toast(isIOS ? "On iPhone: Share → Add to Home Screen, then open the app from the icon." : "This browser does not support notifications. Use Chrome.", true); return; }
+    try {
+      busy(true);
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { busy(false); toast("Notifications were blocked. Allow them in your phone settings for this app.", true); render(); return; }
+      const tk = await getPushToken(); busy(false);
+      if (!tk) { toast("Could not get a notification token. Try again.", true); return; }
+      LS.set("cfd.pushToken", tk);
+      await api("pushRegister", { token: tk, ua: navigator.userAgent, appUrl: location.href.split("#")[0] });
+    } catch (e) { busy(false); toast("Could not turn on notifications: " + (e.message || e), true); }
+  }
+  async function disablePush() {
+    const tk = LS.get("cfd.pushToken");
+    try { if (fbMessaging && tk) await fbMessaging.deleteToken(); } catch (e) {}
+    LS.del("cfd.pushToken"); await api("pushOff", { token: tk || "" });
+  }
+  function maybeInitPush() {
+    if (pushInitTried || !pushConfigured() || !pushSupported() || Notification.permission !== "granted" || !LS.get("cfd.pushToken")) return;
+    pushInitTried = true;
+    getPushToken().then((tk) => { if (tk && (tk !== LS.get("cfd.pushToken") || !S.pushOn)) { LS.set("cfd.pushToken", tk); call("pushRegister", { payload: { token: tk, ua: navigator.userAgent, appUrl: location.href.split("#")[0] } }).catch(() => {}); } }).catch(() => {});
+  }
+  function pushCard() {
+    if (!S || !pushConfigured() || LS.get("cfd.pushHide") === "1") return "";
+    const has = LS.get("cfd.pushToken") && ("Notification" in window) && Notification.permission === "granted";
+    if (has) return "";
+    let body, btn = '<button class="btn go" data-act="pushOn">Turn on notifications</button>';
+    if (isIOS && !standalone) { body = "On iPhone: tap <b>Share → Add to Home Screen</b>, then open CEG Field Duty from the new icon and turn on notifications here."; btn = ""; }
+    else if (!pushSupported()) { body = "This browser does not support notifications. Please open the app in Chrome."; btn = ""; }
+    else if (Notification.permission === "denied") { body = "Notifications are blocked. Open phone Settings → Apps → Chrome (or the app) → Notifications and allow them, then reload."; btn = ""; }
+    else body = "Get alerts for messages, new jobs, approvals and the roster, even when the app is closed.";
+    return `<section class="card pushcard"><div class="row between"><h2>🔔 Notifications</h2><button class="btn sm" data-act="pushHide" aria-label="Hide">Later</button></div><p class="small">${body}</p>${btn ? `<div>${btn}</div>` : ""}</section>`;
   }
 
   /* ================= technician ================= */
@@ -786,7 +1022,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       <h2>${esc(shownSlot.name)} ${tagHTML(shownSlot)}</h2><p class="sub">${shownSlot.zone ? esc(zone(shownSlot.zone)?.name) + " · " : ""}${shownSlot.shift} shift ${shownSlot.shift === "Night" ? "19:00–07:00" : "07:00–19:00"} · ${shownSlot.sites.length} sites</p>
       ${a && a.monitoring ? '<p><span class="pill" style="background:#69BD45;color:#0B2E12">Monitoring in-charge today</span></p>' : ""}</div>`;
     else hero = `<div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>${a?.type === "off" ? "Off duty today" : a?.type === "leave" ? "On leave today" : "Not on today's roster"}</h2><p class="sub">You can still record emergency duty from the Emergency tab.</p></div>`;
-    hero += openJobsCard();
+    hero = pushCard() + hero + openJobsCard();
     if (!shownSlot) return `<div class="stack narrow">${hero}</div>`;
     if (!d) {
       return `<div class="stack narrow">${hero}<form class="card" id="fStart"><h2>Start duty</h2>
@@ -941,6 +1177,10 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     $("#dAcctBody").innerHTML = `<div class="row between"><h2>${esc(u.name)}</h2><button class="btn sm" data-act="closeAcct" aria-label="Close">✕</button></div>
       <p class="small muted">${u.role === "engineer" ? "Engineer" : u.role === "supervisor" ? "Supervisor" : "CNG Technician"} · ${esc(u.mobile)}</p>
       <form class="stack" id="fPin" style="gap:10px"><h3>Change PIN</h3><div class="grid2"><label class="field"><span>Current PIN</span><input type="password" id="opin" inputmode="numeric" maxlength="4" required></label><label class="field"><span>New PIN</span><input type="password" id="npin" inputmode="numeric" maxlength="4" required></label></div><button class="btn primary">Change PIN</button></form>
+      <div class="stack" style="gap:8px"><h3>Notifications on this phone</h3>
+        <p class="small muted">${!pushConfigured() ? "Not set up yet (Firebase settings missing)." : LS.get("cfd.pushToken") && ("Notification" in window) && Notification.permission === "granted" ? "On ✓" : "Off"}</p>
+        <div class="row">${pushConfigured() ? (LS.get("cfd.pushToken") ? '<button class="btn" data-act="pushOff">Turn off</button>' : '<button class="btn go" data-act="pushOn">Turn on</button>') : ""}${u.role === "engineer" ? '<button class="btn" data-act="pushTest">Send test notification</button>' : ""}</div>
+        ${u.role === "engineer" ? `<p class="small muted">Server: ${S.pushReady ? "Firebase key installed ✓" : "Firebase key not installed yet"}</p>` : ""}</div>
       <button class="btn danger" data-act="logout">Log out</button>`;
     $("#dAcct").showModal();
   }
@@ -962,8 +1202,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       technician: { today: techToday, jobs: techJobs, messages: messagesView, emergency: techEmergency, leave: techLeave, mysheet: techSheet, mykpi: techKpi, board: boardView }
     }[u.role];
     const focus = document.activeElement && document.activeElement.id;
+    const keep = $("#chatTxt") ? $("#chatTxt").value : "";
     $("#main").innerHTML = views[tab]();
+    if (keep && $("#chatTxt")) $("#chatTxt").value = keep;
     if (focus && document.getElementById(focus)) { try { document.getElementById(focus).focus(); } catch (e) {} }
+    renderBell();
   }
 
   /* ================= events ================= */
@@ -974,6 +1217,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (t.id === "tsTech") { ui.tsTech = t.value; render(); return; }
     if (t.id === "tsMonth") { ui.tsMonth = t.value || TODAY().slice(0, 7); render(); return; }
     if (t.id === "kpiMonth") { ui.kpiMonth = t.value || TODAY().slice(0, 7); render(); return; }
+    if (t.id === "chatTo") { ui.chatTo = t.value; return; }
     if (t.id === "jobFilter") { ui.jobFilter = t.value; render(); return; }
     if (t.id === "qrSlot") { ui.qrSlot = t.value; render(); return; }
     if (t.name === "dsCar") { const pass = t.value === "pass"; $("#kmWrap").hidden = pass; $("#drvWrap").hidden = !pass; return; }
@@ -987,7 +1231,9 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (t.dataset.cov) { const [sl, si] = t.dataset.cov.split("|"); api("coverage", { slot: sl, site: si, on: t.checked }); return; }
     if (t.dataset.sitef) { const [f, id] = t.dataset.sitef.split("|"); api("siteUpdate", { id, field: f, value: t.value.trim() }); return; }
   });
+  document.addEventListener("keydown", (e) => { if (e.target.id === "chatTxt" && e.key === "Enter" && !e.shiftKey && window.matchMedia("(min-width: 761px)").matches) { e.preventDefault(); $("#fChat").requestSubmit(); } });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "chatTxt") { e.target.style.height = "auto"; e.target.style.height = Math.min(120, e.target.scrollHeight) + "px"; }
     if (e.target.id === "deEnd" || e.target.id === "deKm") {
       const d = openDutyOf(viewer); if (!d) return;
       const h = hoursBetween(d.start, $("#deEnd").value || nowHM()); const km = $("#deKm") ? +$("#deKm").value : 0;
@@ -995,6 +1241,13 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     }
   });
   document.addEventListener("click", async (e) => {
+    if (e.target.closest("#bell")) { const p = $("#npanel"); p.hidden = !p.hidden; renderBell(); return; }
+    const ni = e.target.closest("[data-notif]"); if (ni) { openNotif(ni.dataset.notif); return; }
+    if (e.target.closest("#banner")) { openNotif($("#banner").dataset.id); return; }
+    if (!e.target.closest("#npanel")) $("#npanel").hidden = true;
+    const cr = e.target.closest("[data-room]"); if (cr) { openRoom(cr.dataset.room); return; }
+    const co = e.target.closest("[data-old]"); if (co) { ui.chatOld = co.dataset.old; ui.chatOpen = null; render(); const t = S.threads.find((x) => x.id === co.dataset.old); if (t && t.unread.includes(viewer)) call("msgRead", { payload: { id: t.id } }).catch(() => {}); return; }
+    const cm = e.target.closest("[data-cmode]"); if (cm) { const t = $("#chatTxt")?.value || ""; ui.chatMode = cm.dataset.cmode; render(); const n = $("#chatTxt"); if (n) { n.value = t; } if (ui.chatMode === "private") $("#chatTo")?.focus(); else n?.focus(); return; }
     const g = e.target.closest("[data-goto]"); if (g) { tab = g.dataset.goto; render(); return; }
     if (e.target.closest("#supEditor") && ui.draft && e.target.closest("[data-soff]")) { applyEditorEvent(e, ui.draft, "s"); render(); return; }
     const rk = e.target.closest("[data-roster]"); if (rk && e.target.closest("[data-eoff]")) { applyEditorEvent(e, ui.engEdit[rk.dataset.roster], "e"); render(); return; }
@@ -1027,6 +1280,14 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "wkDel": api("delWork", { id }); return;
       case "jobDone": { const n = (document.querySelector(`[data-jnote="${id}"]`)?.value || "").trim(); if (!n) { toast("Write what was done", true); return; } api("jobComplete", { id, note: n }); return; }
       case "jobCancel": if (!arm()) return; api("jobCancel", { id }); return;
+      case "chatBack": ui.chatOpen = null; ui.chatOld = null; render(); return;
+      case "chatNew": ui.chatPick = !ui.chatPick; render(); $("#chatPickWho")?.focus(); return;
+      case "chatPickGo": { const v = $("#chatPickWho").value; if (!v) { toast("Choose a person", true); return; } openRoom(privRoom(viewer, v)); return; }
+      case "nAll": (S.notifs || []).forEach((n) => (n.read = true)); renderBell(); call("notifRead", { payload: { all: true } }).catch(() => {}); return;
+      case "pushOn": $("#dAcct").open && $("#dAcct").close(); enablePush(); return;
+      case "pushOff": $("#dAcct").close(); disablePush(); return;
+      case "pushHide": LS.set("cfd.pushHide", "1"); render(); return;
+      case "pushTest": $("#dAcct").close(); api("testPush", {}); return;
       case "openThread": { ui.openThread = ui.openThread === id ? null : id; const t = S.threads.find((x) => x.id === id); if (ui.openThread && t && t.unread.includes(viewer)) api("msgRead", { id }, { silent: true }); else render(); return; }
       case "emEdit": ui.emEdit = id; render(); return;
       case "emCancel": ui.emEdit = null; render(); return;
@@ -1057,6 +1318,15 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       if (r && r.ok) { ui.leaveDates = []; render(); }
     } else if (f.id === "fJob") {
       api("jobCreate", { assignee: $("#jbWho").value, site: $("#jbSite").value, desc: $("#jbDesc").value.trim(), due: $("#jbDue").value });
+    } else if (f.id === "fChat") {
+      const t = $("#chatTxt"); const text = t.value.trim(); if (!text) return;
+      const payload = { text };
+      if (ui.chatOpen === "group" && ui.chatMode === "private") { const to = $("#chatTo")?.value || ui.chatTo; if (!to) { toast("Choose who the private message is for", true); return; } payload.to = to; }
+      else payload.room = ui.chatOpen;
+      t.value = "";
+      const r = await api("chatSend", payload, { silent: true });
+      if (r && r.ok) { if (payload.to) { toast("Sent privately to " + nm(payload.to)); ui.chatOpen = r.msg; ui.chatMode = "group"; ui.chatTo = ""; } render(); }
+      else t.value = text;
     } else if (f.id === "fMsg") {
       api("msgSend", { to: $("#msgTo").value.split(",").filter(Boolean), subject: $("#msgSub").value.trim(), text: $("#msgText").value.trim() });
     } else if (f.dataset.reply) {
