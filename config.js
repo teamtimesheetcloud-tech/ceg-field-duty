@@ -10,4 +10,4 @@ self.CFD_FIREBASE = {
   appId: "1:1045248034413:web:baa4ac05b709d9fb78e164"
 };
 // Firebase → Project settings → Cloud Messaging → Web Push certificates → Key pair
-self.CFD_VAPID = "";
+self.CFD_VAPID = "BMD3Fw0NK8rpi2vLMTO3ytLD3sgI0YLVnBMTnexJP-Kvhcci1YwVwSyvN2DbIB-IGyQcboc7MBx4B8BFSIZXgiI";
