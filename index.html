@@ -1,0 +1,1099 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>CEG Field Duty</title>
+<meta name="theme-color" content="#115FA0">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CEG Duty">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* CEG Field Duty – Cloud Energi brand: blue #115FA0, green #69BD45 */
+:root {
+  --bg: #F2F6FA; --surface: #FFFFFF; --sunk: #E8EEF4; --ink: #10233A; --muted: #5A6B7F; --line: #D7E0E9;
+  --blue: #115FA0; --blue-deep: #0B4477; --blue-soft: #E2ECF6; --green: #3F8F27; --green-soft: #E6F4DE; --brand-green: #69BD45;
+  --amber: #B97A06; --amber-soft: #FBF0D9; --red: #C3352B; --red-soft: #FBE4E1; --on-accent: #FFFFFF;
+  --f-display: "Barlow Semi Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "Barlow", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r: 8px; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0C1520; --surface: #142131; --sunk: #0F1A27; --ink: #E4ECF5; --muted: #93A4B8; --line: #253649;
+  --blue: #6AA9DE; --blue-deep: #0E2A47; --blue-soft: #15314C; --green: #7FCB5E; --green-soft: #1C3517;
+  --amber: #E6AE45; --amber-soft: #3A2D12; --red: #EF7166; --red-soft: #3E1D1B; --on-accent: #08121D; color-scheme: dark } }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.45; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.narrow { max-width: 560px; }
+h1, h2, h3 { font-family: var(--f-display); margin: 0; text-wrap: balance; letter-spacing: .01em; }
+h2 { font-size: 1.25rem; } h3 { font-size: 1.05rem; }
+p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.mono { font-family: var(--f-mono); font-size: .86em; font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); } .small { font-size: .85rem; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+.top { background: #FFFFFF; color: #10233A; border-bottom: 3px solid #69BD45; }
+.top .wrap { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding-block: 10px; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.logo { height: 30px; width: auto; display: block; }
+.brand .sep { width: 1px; align-self: stretch; background: #D7E0E9; }
+.brand h1 { font-size: 1.25rem; line-height: 1.05; color: #115FA0; }
+.brand p { font-size: .78rem; color: #5A6B7F; }
+.acct { display: flex; align-items: center; gap: 8px; }
+.acct .who { text-align: right; font-size: .82rem; line-height: 1.2; color: #10233A; }
+.acct .who span { color: #5A6B7F; display: block; }
+.acct button { border: 1px solid #C9D6E3; background: #fff; color: #10233A; border-radius: var(--r); padding: 6px 10px; font-weight: 600; cursor: pointer; }
+.tabsbar { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+.tabs { display: flex; gap: 2px; overflow-x: auto; }
+.tab { border: 0; background: none; padding: 12px 14px 9px; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--blue); border-bottom-color: var(--brand-green); }
+.badge { display: inline-block; min-width: 20px; text-align: center; font-family: var(--f-mono); font-size: .72rem; background: var(--red); color: #fff; border-radius: 10px; padding: 1px 6px; margin-left: 4px; }
+#busy { position: fixed; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #115FA0, #69BD45, #115FA0); background-size: 200% 100%; animation: slide 1s linear infinite; z-index: 60; }
+@keyframes slide { from { background-position: 0 0; } to { background-position: 200% 0; } }
+@media (prefers-reduced-motion: reduce) { #busy { animation: none; } }
+body.busy main { pointer-events: none; opacity: .75; }
+
+main { padding-block: 16px 56px; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.between { justify-content: space-between; }
+.cols2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+.cols3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; align-items: start; }
+@media (max-width: 860px) { .cols2, .cols3 { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card.hl { border-color: var(--blue); }
+.label { font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600; }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 8px 14px; border-radius: var(--r); font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--blue); }
+.btn.primary { background: var(--blue); border-color: var(--blue); color: var(--on-accent); }
+.btn.go { background: var(--green); border-color: var(--green); color: var(--on-accent); }
+.btn.danger { color: var(--red); }
+.btn.danger.arm { background: var(--red); color: #fff; border-color: var(--red); }
+.btn.sm { padding: 5px 10px; font-size: .85rem; }
+.btn.block { width: 100%; justify-content: center; padding: 12px; font-size: 1rem; }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+input, select, textarea { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; min-width: 0; }
+textarea { resize: vertical; min-height: 70px; width: 100%; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field > span { font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid2 .full { grid-column: 1 / -1; }
+@media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
+.form-inline { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.form-inline .field { flex: 1 1 140px; }
+.pill { display: inline-block; font-size: .7rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; padding: 2px 8px; border-radius: 20px; background: var(--sunk); color: var(--muted); white-space: nowrap; }
+.pill.blue { background: var(--blue-soft); color: var(--blue); } .pill.green { background: var(--green-soft); color: var(--green); }
+.pill.amber { background: var(--amber-soft); color: var(--amber); } .pill.red { background: var(--red-soft); color: var(--red); }
+.tag { display: inline-block; font-size: .7rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #0B2E12; background: var(--brand-green); padding: 1px 7px; border-radius: 4px; }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; }
+th { text-align: left; font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); background: var(--sunk); padding: 8px 10px; white-space: nowrap; }
+td { padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: middle; }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+tr.off td { color: var(--muted); }
+tfoot td { font-weight: 600; background: var(--sunk); }
+td input, td select { padding: 5px 8px; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 16px; }
+.kv div b { display: block; font-weight: 600; }
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 12px; }
+@media (max-width: 760px) { .tiles { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+.tile b { display: block; font-family: var(--f-display); font-size: 2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.tile span { font-size: .78rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.tile.alert b { color: var(--red); }
+.zone { display: flex; flex-direction: column; gap: 8px; }
+.zone > h3 { font-size: .95rem; text-transform: uppercase; letter-spacing: .08em; color: var(--blue); }
+.slot { display: grid; grid-template-columns: 150px minmax(0,1fr); gap: 4px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); align-items: center; }
+.slot .nm { font-weight: 600; display: flex; flex-direction: column; gap: 3px; align-items: flex-start; }
+.slot .sites { grid-column: 1 / -1; font-size: .82rem; color: var(--muted); overflow-wrap: anywhere; }
+.slot.empty .who { color: var(--muted); font-style: italic; }
+@media (max-width: 480px) { .slot { grid-template-columns: 1fr; } }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); background: var(--surface); border-radius: 20px; padding: 6px 12px; cursor: pointer; font-weight: 500; font-size: .9rem; }
+.chip[aria-pressed="true"] { background: var(--amber-soft); border-color: var(--amber); color: var(--amber); }
+.chip.lock { cursor: default; background: var(--sunk); color: var(--muted); }
+.err { color: var(--red); font-size: .88rem; }
+.errs { background: var(--red-soft); color: var(--red); border-radius: var(--r); padding: 10px 14px; font-size: .9rem; }
+.errs ul { margin: 4px 0 0; padding-left: 18px; }
+.ok { background: var(--green-soft); color: var(--green); border-radius: var(--r); padding: 10px 14px; font-size: .9rem; }
+.note { background: var(--blue-soft); color: var(--ink); border-radius: var(--r); padding: 10px 14px; font-size: .9rem; }
+.empty { color: var(--muted); padding: 8px 0; }
+.item { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; border-top: 1px solid var(--line); }
+.item:first-of-type { border-top: 0; padding-top: 0; }
+.phone-hero { background: linear-gradient(135deg, #115FA0 0%, #0B4477 100%); color: #fff; border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.phone-hero .pill { background: rgba(255,255,255,.15); color: #fff; }
+.phone-hero h2 { color: #fff; font-size: 1.5rem; }
+.phone-hero .sub { color: #C9DCEE; font-size: .9rem; }
+.visit { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); }
+.visit:first-child { border-top: 0; }
+.visit .done { color: var(--green); font-weight: 600; font-size: .88rem; text-align: right; }
+.datelist { display: flex; flex-wrap: wrap; gap: 6px; }
+.mbar { display: inline-block; width: 90px; height: 8px; background: var(--sunk); border-radius: 4px; overflow: hidden; vertical-align: middle; flex: none; }
+.mbar > span { display: block; height: 100%; border-radius: 4px; }
+.score { font-family: var(--f-display); font-size: 3.2rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.wd { font-size: .82rem; color: var(--muted); max-width: 260px; }
+.seg { display: flex; border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.seg label { flex: 1; display: flex; gap: 8px; align-items: center; justify-content: center; padding: 9px; cursor: pointer; font-weight: 600; }
+.seg label + label { border-left: 1px solid var(--line); }
+.seg label:has(input:checked) { background: var(--blue-soft); color: var(--blue); }
+.threadhead { all: unset; box-sizing: border-box; width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; cursor: pointer; }
+.threadhead:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.msgs { display: flex; flex-direction: column; gap: 8px; }
+.msg { background: var(--sunk); border-radius: 10px; padding: 8px 12px; max-width: 90%; }
+.msg.me { background: var(--blue-soft); align-self: flex-end; }
+dialog { border: 1px solid var(--line); border-radius: 12px; padding: 0; width: min(460px, calc(100vw - 24px)); background: var(--surface); color: var(--ink); }
+dialog::backdrop { background: rgba(8, 18, 30, .6); }
+.dlg { padding: 18px; display: flex; flex-direction: column; gap: 14px; }
+#qrReader { width: 100%; min-height: 240px; background: #0b1622; border-radius: 10px; overflow: hidden; }
+#qrReader video { width: 100% !important; border-radius: 10px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: var(--r); font-weight: 500; z-index: 70; max-width: calc(100vw - 32px); }
+.toast.bad { background: var(--red); color: #fff; }
+/* login */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; background: linear-gradient(160deg, #FFFFFF 0%, #EAF2F9 60%, #E6F4DE 100%); }
+.login .box { width: min(400px, 100%); background: #fff; color: #10233A; border-radius: 14px; border: 1px solid #D7E0E9; padding: 26px 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 12px 40px rgba(17,95,160,.12); }
+.login .box input { background: #fff; color: #10233A; border-color: #C9D6E3; font-size: 1.05rem; padding: 11px 12px; }
+.login .box h1 { color: #115FA0; font-size: 1.6rem; }
+/* QR print */
+.qrgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.qrcard { border: 2px solid #115FA0; border-radius: 10px; padding: 12px; background: #fff; color: #10233A; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; break-inside: avoid; }
+.qrcard .qrbox img, .qrcard .qrbox canvas { width: 160px; height: 160px; }
+.qrcard b { font-size: 1.05rem; }
+@media print {
+  .top, .tabsbar, .noprint, footer { display: none !important; }
+  body { background: #fff; }
+  main { padding: 0; }
+  .qrgrid { grid-template-columns: repeat(3, 1fr); }
+}
+footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="busy" hidden></div>
+
+<section class="login" id="loginView" hidden>
+  <form class="box" id="fLogin">
+    <img src="logo.png" alt="Cloud Energi" style="height:40px;width:auto;align-self:flex-start">
+    <div><h1>CEG Field Duty</h1><p class="small" style="color:#5A6B7F">Duty roster · Site check-in · Timesheet</p></div>
+    <label class="field"><span>Mobile number</span><input id="lgMobile" inputmode="tel" autocomplete="tel" placeholder="05X XXX XXXX" required></label>
+    <label class="field"><span>4-digit PIN</span><input id="lgPin" type="password" inputmode="numeric" maxlength="4" pattern="\d{4}" autocomplete="current-password" placeholder="••••" required></label>
+    <p class="err" id="lgErr" hidden></p>
+    <button class="btn primary block">Log in</button>
+    <p class="small" style="color:#5A6B7F">Your phone is registered on first login. Logging in from another phone needs the Engineer's approval.</p>
+  </form>
+</section>
+
+<div id="appView" hidden>
+  <header class="top">
+    <div class="wrap">
+      <div class="brand"><img class="logo" src="logo.png" alt="Cloud Energi"><span class="sep" aria-hidden="true"></span><div><h1>CEG Field Duty</h1><p id="roleLine"></p></div></div>
+      <div class="acct"><div class="who" id="whoBox"></div><button data-act="account">Account</button></div>
+    </div>
+  </header>
+  <div class="tabsbar"><div class="wrap"><nav class="tabs" id="tabs" role="tablist"></nav></div></div>
+  <main class="wrap" id="main"></main>
+  <footer class="wrap foot noprint">Cloud Energi Gas LLC · CEG Field Duty · <span id="syncInfo"></span> <button class="btn sm" data-act="refresh">Refresh</button></footer>
+</div>
+
+<dialog id="dScan"><div class="dlg" id="dScanBody"></div></dialog>
+<dialog id="dAcct"><div class="dlg" id="dAcctBody"></div></dialog>
+<div class="toast" id="toast" hidden></div>
+
+<script src="config.js"></script>
+<script src="lib/html5-qrcode.min.js"></script>
+<script src="lib/qrcode.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script>
+(function () {
+  "use strict";
+  /* ================= basics ================= */
+  const API = (window.CFD_API || "").trim();
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const pad = (n) => String(n).padStart(2, "0");
+  const iso = (d) => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  const parse = (s) => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d); };
+  const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+  const fmtD = (s, o) => s ? parse(s).toLocaleDateString("en-GB", o || { weekday: "short", day: "numeric", month: "short" }) : "—";
+  const nowHM = () => { const d = new Date(); return pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+  const localDT = (d) => iso(d) + "T" + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  const hoursBetween = (a, b) => { const [h1, m1] = a.split(":").map(Number), [h2, m2] = b.split(":").map(Number); let d = (h2 * 60 + m2) - (h1 * 60 + m1); if (d < 0) d += 1440; return d / 60; };
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const fmtH = (n) => (n ? r2(n) : 0).toString();
+  const dt = (s) => String(s || "").replace("T", " ").slice(0, 16);
+  const LS = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }, del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
+  function toast(msg, bad) { const t = $("#toast"); t.textContent = msg; t.className = "toast" + (bad ? " bad" : ""); t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 3200); }
+
+  let deviceId = LS.get("cfd.device");
+  if (!deviceId) { deviceId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2))); LS.set("cfd.device", deviceId); }
+  let token = LS.get("cfd.token") || "";
+  let ip = "";
+  (async () => { try { const c = new AbortController(); setTimeout(() => c.abort(), 4000); const r = await fetch("https://api.ipify.org?format=json", { signal: c.signal }); ip = (await r.json()).ip || ""; } catch (e) {} })();
+
+  let S = null, viewer = null, lastSync = null;
+  let busyCount = 0;
+  function busy(on) { busyCount += on ? 1 : -1; const b = busyCount > 0; $("#busy").hidden = !b; document.body.classList.toggle("busy", b); }
+  async function call(action, extra) {
+    if (!API || API.indexOf("http") !== 0) throw new Error("App is not configured: set the API link in config.js.");
+    const body = JSON.stringify(Object.assign({ action, token, deviceId, ip }, extra || {}));
+    const res = await fetch(API, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body, redirect: "follow" });
+    if (!res.ok) throw new Error("Network error (" + res.status + "). Check your connection.");
+    return res.json();
+  }
+  async function api(action, payload, opt) {
+    opt = opt || {};
+    busy(true);
+    try {
+      const r = await call(action, { payload: payload || {} });
+      if (!r.ok) {
+        if (r.session) { logoutLocal(r.error); return null; }
+        if (!opt.quietError) toast(r.error, true);
+        return r;
+      }
+      applyState(r.state);
+      if (r.msg && !opt.silent) toast(r.msg);
+      return r;
+    } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
+    finally { busy(false); }
+  }
+  function applyState(st) { S = st; viewer = st.me; lastSync = new Date(); render(); }
+
+  /* ================= login ================= */
+  function showLogin(msg) {
+    $("#appView").hidden = true; $("#loginView").hidden = false;
+    if (msg) { $("#lgErr").textContent = msg; $("#lgErr").hidden = false; }
+  }
+  function logoutLocal(msg) { token = ""; LS.del("cfd.token"); S = null; showLogin(msg); }
+  $("#fLogin").addEventListener("submit", async (e) => {
+    e.preventDefault(); $("#lgErr").hidden = true;
+    busy(true);
+    try {
+      const r = await call("login", { mobile: $("#lgMobile").value, pin: $("#lgPin").value });
+      if (!r.ok) { $("#lgErr").textContent = r.error; $("#lgErr").hidden = false; return; }
+      token = r.token; LS.set("cfd.token", token); LS.set("cfd.mobile", $("#lgMobile").value);
+      $("#lgPin").value = ""; $("#loginView").hidden = true; $("#appView").hidden = false;
+      tab = null; applyState(r.state);
+    } catch (err) { $("#lgErr").textContent = err.message || "Could not reach the server."; $("#lgErr").hidden = false; }
+    finally { busy(false); }
+  });
+
+  /* ================= lookups ================= */
+  const TODAY = () => S.today;
+  const user = (id) => S.users.find((u) => u.id === id);
+  const me = () => user(viewer);
+  const nm = (id) => user(id)?.name || "—";
+  const site = (id) => S.sites.find((s) => s.id === id);
+  const slot = (id) => S.slots.find((s) => s.id === id);
+  const zone = (id) => S.zones.find((z) => z.id === id);
+  const tagHTML = (s) => s && s.tag ? `<span class="tag">${esc(s.tag)}</span>` : "";
+  const techs = (sup) => S.users.filter((u) => u.role === "technician" && (!sup || u.sup === sup));
+  const sups = () => S.users.filter((u) => u.role === "supervisor");
+  const engId = () => S.users.find((u) => u.role === "engineer")?.id;
+  const supSlots = (sup) => S.slots.filter((s) => s.sup === sup);
+  const supSites = (sup) => [...new Set(supSlots(sup).flatMap((s) => s.sites))];
+  const onLeave = (tech, date) => S.leaves.some((l) => l.tech === tech && l.status === "approved" && l.dates.includes(date));
+  const unreadCount = (id) => S.threads.filter((t) => t.unread.includes(id)).length;
+  function effectiveRoster(sup, date) {
+    const r = S.rosters[date + "|" + sup];
+    if (r && r.status === "approved") return { r, fallback: false };
+    const keys = Object.values(S.rosters).filter((x) => x.sup === sup && x.status === "approved" && x.date <= date).sort((a, b) => b.date.localeCompare(a.date));
+    return keys[0] ? { r: keys[0], fallback: true } : { r: null, fallback: false };
+  }
+  function assignmentFor(tech, date) {
+    const u = user(tech); if (!u) return null;
+    if (onLeave(tech, date)) return { type: "leave" };
+    const { r, fallback } = effectiveRoster(u.sup, date);
+    if (!r) return { type: "none" };
+    if (r.off.includes(tech)) return { type: "off", r, fallback };
+    const sl = Object.keys(r.assign).find((k) => r.assign[k] === tech);
+    if (!sl) return { type: "none", r, fallback };
+    return { type: "duty", slot: slot(sl), r, fallback, monitoring: r.monitoring === tech };
+  }
+  function myAssignment(id, date) {
+    const u = user(id);
+    if (u?.role === "supervisor") return { type: "duty", slot: { id: "sup:" + id, name: "Site visits", tag: "", zone: null, shift: "Day", sites: supSites(id) }, monitoring: false, fallback: false };
+    return assignmentFor(id, date);
+  }
+  const slotOf = (d) => !d ? null : String(d.slot).startsWith("sup:") ? myAssignment(d.slot.slice(4), d.date).slot : slot(d.slot);
+  function dutyOf(id, date) { return S.duties.find((x) => x.tech === id && x.date === date); }
+  function openDutyOf(id) { const t = TODAY(), y = addDays(t, -1); return dutyOf(id, t) || S.duties.find((d) => d.tech === id && d.date === y && d.start && !d.end) || null; }
+  function dayCalc(tech, date) {
+    const d = dutyOf(tech, date);
+    const dutyH = d && d.end && d.start ? hoursBetween(d.start, d.end) : 0;
+    const emH = S.emergencies.filter((e) => e.tech === tech && e.status === "approved" && e.start.slice(0, 10) === date).reduce((s, e) => s + (new Date(e.end) - new Date(e.start)) / 36e5, 0);
+    const ot = Math.max(0, dutyH - 9) + emH;
+    const km = d && d.driver && d.kmEnd != null && d.kmStart != null ? d.kmEnd - d.kmStart : 0;
+    const sl = slotOf(d); const supDuty = d && String(d.slot).startsWith("sup:");
+    const covN = d && sl ? (supDuty ? new Set(d.visits.map((v) => v.site)).size : new Set(d.visits.map((v) => v.site).filter((x) => sl.sites.includes(x))).size) : 0;
+    return { d, dutyH, emH, ot, km, covN, covT: sl && !supDuty ? sl.sites.length : 0 };
+  }
+  function kpi(tech, month) {
+    const ds = S.duties.filter((d) => d.tech === tech && d.date.slice(0, 7) === month && d.end);
+    const covs = ds.map((d) => { const c = dayCalc(tech, d.date); return c.covT ? c.covN / c.covT : null; }).filter((x) => x !== null);
+    const coverage = covs.length ? covs.reduce((a, b) => a + b, 0) / covs.length : 0;
+    const km = ds.reduce((a, d) => a + dayCalc(tech, d.date).km, 0);
+    const jm = S.jobs.filter((j) => j.assignee === tech && j.created.slice(0, 7) === month);
+    const jobsDone = jm.filter((j) => j.status !== "open").length;
+    return { jobsTotal: jm.length, jobsDone, jobRate: jm.length ? jobsDone / jm.length : null, days: ds.length, coverage, km, drivingDays: ds.filter((d) => d.driver).length, workEntries: ds.reduce((a, d) => a + (d.work || []).length, 0), ot: ds.reduce((a, d) => a + dayCalc(tech, d.date).ot, 0), wrong: S.logs.filter((l) => l.type === "location" && l.tech === tech && l.at.slice(0, 7) === month).length };
+  }
+  function teamKpi(list, month) {
+    const local = Math.max(0, ...techs().map((t) => kpi(t.id, month).km));
+    const maxKm = Math.max(local, S.kmMax[month] || 0);
+    const W = S.kpiW;
+    return list.map((t) => { const k = kpi(t.id, month);
+      const kmScore = maxKm ? k.km / maxKm : 0;
+      let num = W.site * k.coverage + W.drive * kmScore, den = W.site + W.drive;
+      if (k.jobRate != null) { num += W.job * k.jobRate; den += W.job; }
+      const score = k.days ? Math.round(100 * num / den) : null;
+      return { t, k, kmScore, score };
+    }).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  }
+  const rating = (sc) => sc == null ? ["", "No duty"] : sc >= 85 ? ["green", "Excellent"] : sc >= 70 ? ["blue", "Good"] : sc >= 50 ? ["amber", "Fair"] : ["red", "Needs attention"];
+  const bar = (v, color) => `<span class="mbar"><span style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%;background:var(${color || "--brand-green"})"></span></span>`;
+  const KPI_NOTE = () => `<p class="small muted">Score = ${S.kpiW.site}% site visits (assigned sites visited, daily average) + ${S.kpiW.job}% job closure (jobs completed ÷ jobs assigned this month) + ${S.kpiW.drive}% driving (km vs. highest in team). If no jobs were assigned, the other two are scaled up. Passenger days count no km.</p>`;
+  function supWorkDays(id, month) {
+    const [y, m] = month.split("-").map(Number); const last = month + "-" + pad(new Date(y, m, 0).getDate());
+    let d = month + "-01" > S.appStart ? month + "-01" : S.appStart; const out = [];
+    for (; d <= last && d <= TODAY(); d = addDays(d, 1)) {
+      if (parse(d).getDay() === 0) continue;
+      const rec = dutyOf(id, d);
+      if (d === TODAY() && !(rec && rec.visits.length)) continue;
+      out.push({ date: d, rec, n: rec ? new Set(rec.visits.map((v) => v.site)).size : 0 });
+    }
+    return out;
+  }
+  function supKpi(id, month) {
+    const T = S.supTarget || 8; const wd = supWorkDays(id, month);
+    const visits = wd.reduce((a, x) => a + x.n, 0);
+    const own = wd.length ? Math.round(100 * wd.reduce((a, x) => a + Math.min(1, x.n / T), 0) / wd.length) : null;
+    const tk = teamKpi(techs(id), month).filter((x) => x.score != null);
+    const team = tk.length ? Math.round(tk.reduce((a, x) => a + x.score, 0) / tk.length) : null;
+    const score = own == null ? team : team == null ? own : Math.round((S.supW.own * own + S.supW.team * team) / (S.supW.own + S.supW.team));
+    return { days: wd.length, visits, avg: wd.length ? r2(visits / wd.length) : 0, met: wd.filter((x) => x.n >= T).length, zero: wd.filter((x) => !x.n).length, own, team, score, wrong: S.logs.filter((l) => l.type === "location" && l.tech === id && l.at.slice(0, 7) === month).length };
+  }
+  function pendingFor(role, id) {
+    if (role === "engineer") return Object.values(S.rosters).filter((r) => r.status === "submitted").length + S.leaves.filter((l) => l.status === "pending_eng").length + S.emergencies.filter((e) => e.status === "pending_eng").length + S.users.filter((u) => u.device === "pending").length + S.jobs.filter((j) => j.status === "pending_eng").length;
+    if (role === "supervisor") { const mine = techs(id).map((t) => t.id); return S.leaves.filter((l) => l.status === "pending_sup" && mine.includes(l.tech)).length + S.emergencies.filter((e) => e.status === "pending_sup" && mine.includes(e.tech)).length + S.jobs.filter((j) => j.status === "pending_sup" && mine.includes(j.assignee)).length; }
+    return 0;
+  }
+
+  /* ================= navigation ================= */
+  const TABS = {
+    engineer: [["overview", "Overview"], ["approvals", "Approvals"], ["jobs", "Jobs"], ["messages", "Messages"], ["board", "Roster board"], ["team", "Team"], ["sites", "Sites & slots"], ["qr", "QR codes"], ["timesheets", "Timesheets"], ["kpi", "KPI"], ["logs", "Logs"]],
+    supervisor: [["today", "Site visits"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["approvals", "Approvals"], ["messages", "Messages"], ["board", "Roster board"], ["team", "My team"]],
+    technician: [["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Messages"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
+  };
+  let tab = null;
+  const ui = { boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
+  function renderTabs() {
+    const u = me();
+    const cnt = { approvals: pendingFor(u.role, u.id), messages: unreadCount(u.id), jobs: u.role === "technician" ? S.jobs.filter((j) => j.assignee === u.id && j.status === "open").length : 0 };
+    $("#tabs").innerHTML = TABS[u.role].map(([k, l]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${l}${cnt[k] ? `<span class="badge">${cnt[k]}</span>` : ""}</button>`).join("");
+  }
+  $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; tab = b.dataset.tab; LS.set("cfd.tab", tab); ui.draft = null; render(); window.scrollTo(0, 0); });
+
+  /* ================= roster board ================= */
+  function boardHTML(date) {
+    return sups().map((sp) => {
+      const { r, fallback } = effectiveRoster(sp.id, date);
+      const pend = S.rosters[date + "|" + sp.id];
+      const head = `<div class="row between"><h2>${esc(sp.name)}'s team</h2>${r ? (fallback ? `<span class="pill amber">Last approved: ${fmtD(r.date)}</span>` : `<span class="pill green">Approved</span>`) : `<span class="pill">No approved roster</span>`}</div>
+        ${fallback && pend ? `<p class="small muted">Roster for ${fmtD(date)} is ${pend.status === "submitted" ? "waiting for Engineer approval" : "in draft"}. Technicians follow the last approved roster.</p>` : ""}`;
+      if (!r) return `<section class="card">${head}<p class="empty">No roster yet.</p></section>`;
+      const zones = S.zones.filter((z) => supSlots(sp.id).some((s) => s.zone === z.id));
+      const zoneHTML = zones.map((z) => `<div class="zone"><h3>${esc(z.name)}</h3>${supSlots(sp.id).filter((s) => s.zone === z.id).map((s) => {
+        const t = r.assign[s.id];
+        return `<div class="slot${t ? "" : " empty"}"><span class="nm"><span>${esc(s.name)}${s.shift === "Night" ? ' <span class="pill blue">Night</span>' : ""}</span>${tagHTML(s)}</span>
+          <span class="who">${t ? `<b>${esc(nm(t))}</b>${r.monitoring === t ? ' <span class="pill green">Monitoring in-charge</span>' : ""}` : "Not assigned"}</span>
+          <span class="sites">${s.sites.map((x) => esc(site(x)?.name)).join(" · ")}</span></div>`;
+      }).join("")}</div>`).join("");
+      const offs = r.off.map((t) => `<span class="pill amber">${esc(nm(t))} · Off</span>`).concat(techs(sp.id).filter((t) => onLeave(t.id, date)).map((t) => `<span class="pill red">${esc(t.name)} · Leave</span>`));
+      return `<section class="card">${head}<div class="cols3">${zoneHTML}</div><div class="row"><span class="label">Off / Leave</span>${offs.join("") || '<span class="muted small">None</span>'}</div></section>`;
+    }).join("") || '<p class="empty">No supervisors yet.</p>';
+  }
+  function boardView() {
+    ui.boardDate = ui.boardDate || TODAY();
+    return `<div class="stack"><div class="row between"><div><h2>Roster board</h2><p class="muted small">Visible to everyone once approved by the Engineer.</p></div>
+      <label class="field"><span>Date</span><input type="date" id="boardDate" value="${ui.boardDate}"></label></div>${boardHTML(ui.boardDate)}</div>`;
+  }
+
+  /* ================= roster editor ================= */
+  function newDraft(sup, date) {
+    const ex = S.rosters[date + "|" + sup];
+    if (ex) return JSON.parse(JSON.stringify(ex));
+    const prev = Object.values(S.rosters).filter((x) => x.sup === sup && x.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
+    const d = { key: date + "|" + sup, date, sup, status: "draft", assign: prev ? { ...prev.assign } : {}, monitoring: prev ? prev.monitoring : "", off: prev ? [...prev.off] : [], prefilledFrom: prev ? prev.date : null };
+    techs(sup).forEach((t) => { if (onLeave(t.id, date)) { d.off = d.off.filter((x) => x !== t.id); Object.keys(d.assign).forEach((k) => { if (d.assign[k] === t.id) d.assign[k] = ""; }); if (d.monitoring === t.id) d.monitoring = ""; } });
+    return d;
+  }
+  function validate(r) {
+    const e = []; const used = {};
+    supSlots(r.sup).forEach((s) => {
+      const t = r.assign[s.id];
+      if (s.mandatory && !t) e.push(`${s.name} is mandatory.`);
+      if (t) { if (used[t]) e.push(`${nm(t)} is placed in two slots.`); used[t] = 1; if (r.off.includes(t)) e.push(`${nm(t)} is marked off but also placed in ${s.name}.`); if (onLeave(t, r.date)) e.push(`${nm(t)} is on approved leave.`); }
+    });
+    if (!r.monitoring) e.push("Monitoring in-charge is mandatory.");
+    else if (!Object.values(r.assign).includes(r.monitoring)) e.push("Monitoring in-charge must be one of the technicians on duty.");
+    return [...new Set(e)];
+  }
+  function editorHTML(r, prefix) {
+    const tlist = techs(r.sup);
+    const zones = S.zones.filter((z) => supSlots(r.sup).some((s) => s.zone === z.id));
+    const opt = (sel, allowEmpty) => `<option value="">${allowEmpty ? "Empty" : "Select technician"}</option>` + tlist.map((t) => { const lv = onLeave(t.id, r.date); return `<option value="${t.id}" ${t.id === sel ? "selected" : ""} ${lv ? "disabled" : ""}>${esc(t.name)}${lv ? " (leave)" : r.off.includes(t.id) ? " (off)" : ""}</option>`; }).join("");
+    const onDuty = Object.values(r.assign).filter(Boolean);
+    const unplaced = tlist.filter((t) => !onDuty.includes(t.id) && !r.off.includes(t.id) && !onLeave(t.id, r.date));
+    return `<div class="cols3">${zones.map((z) => `<div class="zone"><h3>${esc(z.name)}</h3>${supSlots(r.sup).filter((s) => s.zone === z.id).map((s) => `
+        <label class="slot"><span class="nm"><span>${esc(s.name)}${s.mandatory ? ' <span class="pill red">Must</span>' : ""}</span>${tagHTML(s)}</span>
+        <select data-${prefix}slot="${s.id}">${opt(r.assign[s.id] || "", !s.mandatory)}</select>
+        <span class="sites">${s.shift === "Night" ? "19:00–07:00 · " : "07:00–19:00 · "}${s.sites.length} sites</span></label>`).join("")}</div>`).join("")}</div>
+      <div class="grid2">
+        <label class="field"><span>Monitoring in-charge (extra duty) · Must</span><select data-${prefix}mon="1"><option value="">Select from technicians on duty</option>${onDuty.map((t) => `<option value="${t}" ${t === r.monitoring ? "selected" : ""}>${esc(nm(t))}</option>`).join("")}</select></label>
+        <div class="field"><span>Off day (tap to mark)</span><div class="chips">${tlist.map((t) => onLeave(t.id, r.date) ? `<span class="chip lock">${esc(t.name)} · Leave</span>` : `<button type="button" class="chip" data-${prefix}off="${t.id}" aria-pressed="${r.off.includes(t.id)}">${esc(t.name)}</button>`).join("")}</div></div>
+      </div>
+      ${unplaced.length ? `<p class="small muted">Not placed and not off: ${unplaced.map((t) => esc(t.name)).join(", ")}</p>` : ""}`;
+  }
+  function applyEditorEvent(e, r, prefix) {
+    const t = e.target;
+    if (t.dataset[prefix + "slot"] !== undefined) { r.assign[t.dataset[prefix + "slot"]] = t.value; if (t.value) r.off = r.off.filter((x) => x !== t.value); if (r.monitoring && !Object.values(r.assign).includes(r.monitoring)) r.monitoring = ""; return true; }
+    if (t.dataset[prefix + "mon"] !== undefined) { r.monitoring = t.value; return true; }
+    const c = t.closest("[data-" + prefix + "off]");
+    if (c) { const id = c.dataset[prefix + "off"]; if (r.off.includes(id)) r.off = r.off.filter((x) => x !== id); else { r.off.push(id); Object.keys(r.assign).forEach((k) => { if (r.assign[k] === id) r.assign[k] = ""; }); if (r.monitoring === id) r.monitoring = ""; } return true; }
+    return false;
+  }
+
+  /* ================= supervisor ================= */
+  function supPrepare() {
+    ui.prepDate = ui.prepDate || addDays(TODAY(), 1);
+    if (!ui.draft || ui.draft.date !== ui.prepDate) ui.draft = newDraft(viewer, ui.prepDate);
+    const r = ui.draft; const errs = validate(r);
+    const late = localDT(new Date()) > addDays(r.date, -1) + "T18:00";
+    const locked = r.status === "submitted" || r.status === "approved";
+    const status = { draft: ["", "Draft"], submitted: ["amber", "Waiting for Engineer"], approved: ["green", "Approved"] }[r.status] || ["", "Draft"];
+    return `<div class="stack">
+      <div class="row between"><div><h2>Roster for ${fmtD(r.date, { weekday: "long", day: "numeric", month: "long" })}</h2>
+        <p class="small ${late && !locked ? "err" : "muted"}">${late ? "Deadline passed (18:00 " + fmtD(addDays(r.date, -1)) + "). It will be marked late." : "Submit before 18:00 " + fmtD(addDays(r.date, -1)) + "."}${r.prefilledFrom && !locked ? ` Pre-filled from ${fmtD(r.prefilledFrom)}; change only what is different.` : ""}</p></div>
+        <div class="row"><label class="field"><span>Roster date</span><input type="date" id="prepDate" min="${addDays(TODAY(), 1)}" value="${ui.prepDate}"></label><span class="pill ${status[0]}">${status[1]}</span></div></div>
+      ${locked ? `<div class="note">${r.status === "approved" ? "Approved by the Engineer and shown on the roster board." : "Submitted. The Engineer can change names before approving."}</div>${boardPreview(r)}${r.status === "submitted" ? `<div><button class="btn" data-act="recall">Recall and edit</button></div>` : ""}`
+      : `<div class="card" id="supEditor">${editorHTML(r, "s")}</div>
+      ${errs.length ? `<div class="errs"><b>Fix before submitting</b><ul>${errs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : `<div class="ok">All mandatory duties are filled.</div>`}
+      <div class="row"><button class="btn primary" data-act="submitRoster" ${errs.length ? "disabled" : ""}>Submit to Engineer</button><button class="btn" data-act="saveDraft">Save draft</button></div>`}
+    </div>`;
+  }
+  function boardPreview(r) {
+    return `<div class="cols3">${supSlots(r.sup).map((s) => `<div class="slot"><span class="nm"><span>${esc(s.name)}</span>${tagHTML(s)}</span><span class="who">${r.assign[s.id] ? `<b>${esc(nm(r.assign[s.id]))}</b>${r.monitoring === r.assign[s.id] ? ' <span class="pill green">Monitoring</span>' : ""}` : "Not assigned"}</span></div>`).join("")}</div>
+      <p class="small muted">Off: ${r.off.map((t) => esc(nm(t))).join(", ") || "none"}</p>`;
+  }
+  function supApprovals() {
+    const mine = techs(viewer).map((t) => t.id);
+    const lv = S.leaves.filter((l) => l.status === "pending_sup" && mine.includes(l.tech));
+    const em = S.emergencies.filter((e) => e.status === "pending_sup" && mine.includes(e.tech));
+    const jb = S.jobs.filter((j) => j.status === "pending_sup" && mine.includes(j.assignee));
+    return `<div class="stack"><section class="card"><h2>Completed jobs</h2>${jb.length ? jb.map((j) => jobItem(j, "sup")).join("") : '<p class="empty">No completed jobs waiting.</p>'}</section><div class="cols2">
+      <section class="card"><h2>Leave requests</h2>${lv.length ? lv.map((l) => leaveItem(l, "sup")).join("") : '<p class="empty">No requests waiting.</p>'}</section>
+      <section class="card"><h2>Emergency duty</h2>${em.length ? em.map((e) => emItem(e, "sup")).join("") : '<p class="empty">No entries waiting.</p>'}</section></div></div>`;
+  }
+  function decideBtns(kind, id, stage) {
+    return `<div class="form-inline"><input placeholder="Comment (needed to return)" data-cmt="${id}" aria-label="Comment"><button class="btn sm go" data-act="decide" data-kind="${kind}" data-ok="1" data-id="${id}">${stage === "sup" ? "Approve and send to Engineer" : kind === "job" ? "Approve and close" : "Approve"}</button><button class="btn sm danger" data-act="decide" data-kind="${kind}" data-ok="0" data-id="${id}">Return</button></div>`;
+  }
+  function leaveItem(l, stage) {
+    return `<div class="item"><div class="row between"><b>${esc(nm(l.tech))}</b><span class="pill amber">${l.dates.length} day${l.dates.length > 1 ? "s" : ""}</span></div>
+      <div class="small">${l.dates.map((d) => fmtD(d)).join(", ")}${l.reason ? " · " + esc(l.reason) : ""}</div>${decideBtns("leave", l.id, stage)}</div>`;
+  }
+  function emItem(e, stage) {
+    const h = r2((new Date(e.end) - new Date(e.start)) / 36e5);
+    return `<div class="item"><div class="row between"><b>${esc(nm(e.tech))} · ${esc(site(e.site)?.name)}</b><span class="pill red">${h} h</span></div>
+      <div class="small mono">${dt(e.start)} → ${dt(e.end)}</div><div class="small">${esc(e.desc)}</div>${decideBtns("emergency", e.id, stage)}</div>`;
+  }
+  const devPill = (d) => d === "approved" ? '<span class="pill green">Registered</span>' : d === "pending" ? '<span class="pill amber">New phone waiting</span>' : '<span class="pill">Not registered</span>';
+  function teamTable(list) {
+    return `<div class="tablewrap"><table><thead><tr><th>Name</th><th>Today</th><th>Mobile</th><th>Phone</th></tr></thead><tbody>${list.map((t) => {
+      const a = assignmentFor(t.id, TODAY());
+      const st = !a ? "—" : a.type === "duty" ? esc(a.slot.name) + (a.monitoring ? " + Monitoring" : "") : a.type === "off" ? "Off" : a.type === "leave" ? "Leave" : "Not placed";
+      return `<tr><td>${esc(t.name)}</td><td>${st}</td><td class="mono">${esc(t.mobile) || '<span class="muted">—</span>'}</td><td>${devPill(t.device)}</td></tr>`;
+    }).join("")}</tbody></table></div>`;
+  }
+  function supToday() {
+    const d = dutyOf(viewer, TODAY());
+    const plan = d ? (d.plan || []) : []; const visits = d ? d.visits : [];
+    const groups = supSlots(viewer).filter((s) => s.sites.length && s.shift !== "Night").map((s) => { const opts = s.sites.filter((x) => !plan.includes(x)); return opts.length ? `<optgroup label="${esc(s.tag || s.name)}">${opts.map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>` : ""; }).join("");
+    const list = plan.map((sid) => { const x = site(sid); const v = visits.find((q) => q.site === sid);
+      return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ Scanned ${v.time}</span>` : `<span class="row"><button class="btn sm primary" data-act="scan" data-id="${sid}">Scan QR</button><button class="btn sm" data-act="supRemove" data-id="${sid}" aria-label="Remove ${esc(x?.name)}">✕</button></span>`}</div>`; }).join("");
+    return `<div class="stack narrow"><div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>Site visits</h2><p class="sub">${visits.length} scanned · ${plan.length} added today · target ${S.supTarget}</p></div>
+      ${openJobsCard()}
+      <form class="card" id="fSupAdd"><h2>Add a site</h2><p class="small muted">Add the site you are going to, then scan its QR code when you reach it. Location must be within ${S.radius} m.</p>
+        <div class="form-inline"><label class="field"><span>Site</span><select id="supSite" required><option value="">Select site</option>${groups}</select></label><button class="btn primary">Add site</button></div></form>
+      <section class="card"><h2>Today's sites</h2>${list || '<p class="empty">No sites added yet.</p>'}</section>
+      ${workCard(d, { sites: supSites(viewer) }, true)}</div>`;
+  }
+
+  /* ================= engineer ================= */
+  function engOverview() {
+    const pendR = Object.values(S.rosters).filter((r) => r.status === "submitted").length;
+    const loc = S.logs.filter((l) => l.type === "location" && l.at.slice(0, 10) >= addDays(TODAY(), -7)).length;
+    const onDutyNow = S.duties.filter((d) => (d.date === TODAY() || (d.date === addDays(TODAY(), -1) && !d.end)) && d.start && !d.end).length;
+    return `<div class="stack">
+      <div class="tiles"><div class="tile"><b>${pendingFor("engineer")}</b><span>Waiting your approval</span></div>
+        <div class="tile"><b>${onDutyNow}</b><span>On duty now</span></div>
+        <div class="tile${loc ? " alert" : ""}"><b>${loc}</b><span>Wrong-location alerts (7 days)</span></div>
+        <div class="tile"><b>${S.sites.length}</b><span>Sites · ${S.sites.filter((s) => s.lat != null).length} with GPS</span></div></div>
+      ${pendR ? `<div class="note">${pendR} roster${pendR > 1 ? "s" : ""} submitted for approval. <button class="btn sm primary" data-goto="approvals">Review</button></div>` : ""}
+      <div class="cols2"><section class="card"><h2>Today's duty status</h2>${S.users.filter((u) => u.role === "supervisor" || u.role === "technician").map((t) => {
+        const a = myAssignment(t.id, TODAY()); const d = t.role === "supervisor" ? dutyOf(t.id, TODAY()) : openDutyOf(t.id);
+        const st = t.role === "supervisor" ? `<span class="pill ${d && d.visits.length ? "green" : "amber"}">${d ? d.visits.length : 0} site(s) scanned</span>` : a?.type === "duty" ? (d ? (d.end ? `<span class="pill">Closed ${d.end}</span>` : `<span class="pill green">On duty since ${d.start}</span>`) : `<span class="pill amber">Not started</span>`) : `<span class="pill">${a?.type === "off" ? "Off" : a?.type === "leave" ? "Leave" : "Not placed"}</span>`;
+        const sub = t.role === "supervisor" ? "Supervisor" + (d && d.visits.length ? " · last scan " + [...d.visits].sort((x, y) => y.time.localeCompare(x.time))[0].time : "") : (a?.type === "duty" ? esc(a.slot.name) + (a.monitoring ? " · Monitoring" : "") : "") + (d ? " · " + d.visits.length + " site(s)" : "");
+        return `<div class="visit"><span><b>${esc(t.name)}</b><br><span class="small muted">${sub}</span></span>${st}</div>`;
+      }).join("")}</section>
+      <section class="card"><h2>Recent log</h2>${S.logs.slice(0, 8).map(logRow).join("") || '<p class="empty">No entries yet.</p>'}</section></div></div>`;
+  }
+  const logRow = (l) => `<div class="visit"><span class="small"><span class="mono muted">${dt(l.at)}</span><br>${esc(l.text)}</span>${{ location: '<span class="pill red">Location</span>', device: '<span class="pill amber">Device</span>', login: '<span class="pill">Login</span>', approval: '<span class="pill green">Approval</span>' }[l.type] || ""}</div>`;
+  function engApprovals() {
+    const rs = Object.values(S.rosters).filter((r) => r.status === "submitted").sort((a, b) => a.date.localeCompare(b.date));
+    rs.forEach((r) => { if (!ui.engEdit[r.key] || ui.engEdit[r.key]._v !== r.submittedAt) ui.engEdit[r.key] = Object.assign(JSON.parse(JSON.stringify(r)), { _v: r.submittedAt }); });
+    const lv = S.leaves.filter((l) => l.status === "pending_eng");
+    const em = S.emergencies.filter((e) => e.status === "pending_eng");
+    const dv = S.users.filter((u) => u.device === "pending");
+    const jb = S.jobs.filter((j) => j.status === "pending_eng");
+    return `<div class="stack">
+      <section class="card"><h2>Rosters</h2>${rs.length ? rs.map((r0) => { const r = ui.engEdit[r0.key]; const errs = validate(r);
+        return `<div class="item"><div class="row between"><b>${esc(nm(r.sup))} · ${fmtD(r.date, { weekday: "long", day: "numeric", month: "short" })}</b><span class="row">${r0.late ? '<span class="pill red">Late</span>' : ""}<span class="pill amber">Submitted</span></span></div>
+          <p class="small muted">You can change names below before approving.</p>
+          <div data-roster="${esc(r.key)}">${editorHTML(r, "e")}</div>
+          ${errs.length ? `<div class="errs"><ul>${errs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+          <div class="row"><button class="btn go" data-act="approveRoster" data-key="${esc(r.key)}" ${errs.length ? "disabled" : ""}>Approve and publish</button></div></div>`; }).join("") : '<p class="empty">No rosters waiting. Supervisors submit next-day rosters before 18:00.</p>'}</section>
+      <section class="card"><h2>Completed jobs</h2>${jb.map((j) => jobItem(j, "eng")).join("") || '<p class="empty">No completed jobs waiting.</p>'}</section>
+      <div class="cols2">
+        <section class="card"><h2>Leave requests</h2>${lv.length ? lv.map((l) => leaveItem(l, "eng")).join("") : '<p class="empty">Nothing waiting.</p>'}</section>
+        <section class="card"><h2>Emergency duty</h2>${em.length ? em.map((e) => emItem(e, "eng")).join("") : '<p class="empty">Nothing waiting.</p>'}</section>
+      </div>
+      <section class="card"><h2>New phone logins</h2>${dv.length ? dv.map((u) => `<div class="visit"><span><b>${esc(u.name)}</b><br><span class="small muted">Tried to log in from a new phone</span></span><span class="row"><button class="btn sm go" data-act="devOk" data-id="${u.id}">Approve phone</button><button class="btn sm danger" data-act="devNo" data-id="${u.id}">Reject</button></span></div>`).join("") : '<p class="empty">No phone requests.</p>'}</section></div>`;
+  }
+  function engTeam() {
+    const ss = sups();
+    const people = S.users.filter((u) => u.role !== "engineer");
+    return `<div class="stack">
+      <section class="card"><h2>People</h2>
+        <div class="tablewrap"><table><thead><tr><th>Name</th><th>Role</th><th>Supervisor</th><th>Mobile</th><th>PIN</th><th>Phone</th><th></th></tr></thead><tbody>
+        ${[...S.users.filter((u) => u.role === "engineer"), ...people].map((t) => `<tr><td><b>${esc(t.name)}</b></td><td>${t.role === "technician" ? "Technician" : t.role === "supervisor" ? "Supervisor" : "Engineer"}</td>
+          <td>${t.role === "technician" ? `<select data-usup="${t.id}" aria-label="Supervisor">${ss.map((s) => `<option value="${s.id}" ${s.id === t.sup ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>` : ""}</td>
+          <td><input class="mono" value="${esc(t.mobile)}" data-umobile="${t.id}" aria-label="Mobile" style="width:140px"></td>
+          <td><span class="row" style="flex-wrap:nowrap;gap:6px">${t.pin ? '<span class="pill green">Set</span>' : '<span class="pill red">Not set</span>'}<input data-pinfor="${t.id}" inputmode="numeric" maxlength="4" placeholder="New" style="width:70px" aria-label="New PIN"><button class="btn sm" data-act="setPin" data-id="${t.id}">Set</button></span></td>
+          <td>${devPill(t.device)}</td>
+          <td><span class="row" style="flex-wrap:nowrap;gap:6px"><button class="btn sm" data-act="devReset" data-id="${t.id}">Reset phone</button>${t.role !== "engineer" ? `<button class="btn sm danger" data-act="deactivate" data-id="${t.id}">Remove</button>` : ""}</span></td></tr>`).join("")}
+        </tbody></table></div>
+        <form class="form-inline" id="fUser"><label class="field"><span>New person</span><input id="nuName" required placeholder="Full name"></label>
+          <label class="field"><span>Role</span><select id="nuRole"><option value="technician">Technician</option><option value="supervisor">Supervisor</option></select></label>
+          <label class="field"><span>Mobile</span><input id="nuMob" required placeholder="05X XXX XXXX" inputmode="tel"></label>
+          <label class="field"><span>4-digit PIN</span><input id="nuPin" inputmode="numeric" maxlength="4" placeholder="••••"></label>
+          <label class="field"><span>Supervisor</span><select id="nuSup">${ss.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label>
+          <button class="btn primary">Add</button></form>
+        <p class="small muted">Only the Engineer can add people. The first login registers the phone; any other phone needs your approval. "Reset phone" lets the next login register a new phone.</p></section></div>`;
+  }
+  function engSites() {
+    const ss = sups();
+    return `<div class="stack">
+      <section class="card"><div class="row between"><h2>Zones and duty slots</h2>
+        <div class="row"><label class="field" style="flex:0 0 auto"><span>Check-in radius (m)</span><input type="number" id="radius" min="20" max="2000" step="10" value="${S.radius}" style="width:120px"></label>
+        <label class="row small" style="gap:6px"><input type="checkbox" id="allowNoGps" ${S.allowNoGps ? "checked" : ""}> Allow check-in at sites without GPS (pilot)</label></div></div>
+        <div class="tablewrap"><table><thead><tr><th>Slot</th><th>Tag</th><th>Zone</th><th>Shift</th><th>Supervisor</th><th>Mandatory</th><th class="num">Sites</th></tr></thead><tbody>
+        ${S.slots.map((s) => `<tr><td><input value="${esc(s.name)}" data-slotf="name|${s.id}" aria-label="Slot name"></td>
+          <td><input value="${esc(s.tag || "")}" data-slotf="tag|${s.id}" placeholder="e.g. KEZAD" aria-label="Tag" style="width:140px"></td>
+          <td><select data-slotf="zone|${s.id}">${S.zones.map((z) => `<option value="${z.id}" ${z.id === s.zone ? "selected" : ""}>${esc(z.name)}</option>`).join("")}</select></td>
+          <td><select data-slotf="shift|${s.id}"><option ${s.shift === "Day" ? "selected" : ""}>Day</option><option ${s.shift === "Night" ? "selected" : ""}>Night</option></select></td>
+          <td><select data-slotf="sup|${s.id}">${ss.map((u) => `<option value="${u.id}" ${u.id === s.sup ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select></td>
+          <td><input type="checkbox" data-slotf="mandatory|${s.id}" ${s.mandatory ? "checked" : ""} aria-label="Mandatory"></td><td class="num">${s.sites.length}</td></tr>`).join("")}
+        </tbody></table></div>
+        <div class="cols2"><form class="form-inline" id="fZone"><label class="field"><span>New zone</span><input id="nzName" required placeholder="e.g. Zone 4"></label><button class="btn">Add zone</button></form>
+        <form class="form-inline" id="fSlot"><label class="field"><span>New slot</span><input id="nslName" required placeholder="e.g. Technician 7"></label><label class="field"><span>Tag</span><input id="nslTag" placeholder="e.g. Al Ain"></label><label class="field"><span>Zone</span><select id="nslZone">${S.zones.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("")}</select></label><button class="btn">Add slot</button></form></div></section>
+      <section class="card"><h2>Sites</h2><p class="small muted">Tick which slot covers each site. To set GPS, stand at the site and tap 📍, or type the coordinates.</p>
+        <div class="tablewrap"><table><thead><tr><th>Site</th><th>Area</th>${S.slots.map((s) => `<th title="${esc(s.name)}">${esc(s.tag || s.name)}</th>`).join("")}<th>Latitude</th><th>Longitude</th><th></th></tr></thead><tbody>
+        ${S.sites.map((x) => `<tr><td><b>${esc(x.name)}</b></td><td class="small">${esc(x.area)}</td>${S.slots.map((s) => `<td><input type="checkbox" data-cov="${s.id}|${x.id}" ${s.sites.includes(x.id) ? "checked" : ""} aria-label="${esc(s.name)} covers ${esc(x.name)}"></td>`).join("")}
+          <td><input class="mono" style="width:110px" value="${x.lat ?? ""}" placeholder="25.0xxxx" data-sitef="lat|${x.id}" aria-label="Latitude"></td><td><input class="mono" style="width:110px" value="${x.lng ?? ""}" placeholder="55.0xxxx" data-sitef="lng|${x.id}" aria-label="Longitude"></td>
+          <td><button class="btn sm" data-act="hereGps" data-id="${x.id}" title="Use my current location">📍</button></td></tr>`).join("")}
+        </tbody></table></div>
+        <form class="form-inline" id="fSite"><label class="field"><span>New site</span><input id="nsiName" required placeholder="Site name"></label><label class="field"><span>Area</span><input id="nsiArea" placeholder="e.g. DXB – JAFZA"></label><label class="field"><span>Slot</span><select id="nsiSlot">${S.slots.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join("")}</select></label><button class="btn primary">Add site</button></form></section></div>`;
+  }
+  function engQr() {
+    const list = ui.qrSlot === "all" ? S.sites : (slot(ui.qrSlot)?.sites || []).map(site).filter(Boolean);
+    setTimeout(drawQrs, 0);
+    return `<div class="stack"><div class="row between noprint"><div><h2>Site QR codes</h2><p class="small muted">Print, laminate and fix one at each site. Technicians scan these to check in.</p></div>
+      <div class="row"><label class="field"><span>Show</span><select id="qrSlot"><option value="all">All sites</option>${S.slots.map((s) => `<option value="${s.id}" ${ui.qrSlot === s.id ? "selected" : ""}>${esc(s.tag || s.name)}</option>`).join("")}</select></label><button class="btn primary" data-act="print">Print</button></div></div>
+      <div class="qrgrid">${list.map((x) => { const tg = S.slots.find((s) => s.sites.includes(x.id) && s.shift !== "Night"); return `<div class="qrcard"><img src="logo.png" alt="" style="height:18px;width:auto"><div class="qrbox" data-qr="CEGFD:SITE:${x.id}"></div><b>${esc(x.name)}</b><span class="small" style="color:#5A6B7F">${esc(x.area)}${tg && tg.tag ? " · " + esc(tg.tag) : ""}</span><span class="small" style="color:#115FA0">Scan with CEG Field Duty</span></div>`; }).join("")}</div></div>`;
+  }
+  function drawQrs() {
+    if (!window.QRCode) return;
+    document.querySelectorAll("[data-qr]").forEach((el) => { if (el.dataset.done) return; el.dataset.done = 1; new QRCode(el, { text: el.dataset.qr, width: 320, height: 320, colorDark: "#0B2E4F", colorLight: "#FFFFFF", correctLevel: QRCode.CorrectLevel.M }); });
+  }
+  function sheetTable(tech, month) {
+    const [y, m] = month.split("-").map(Number); const days = new Date(y, m, 0).getDate();
+    let tH = 0, tE = 0, tO = 0, tS = 0, on = 0, tK = 0; const rows = [];
+    for (let i = 1; i <= days; i++) {
+      const date = month + "-" + pad(i); if (date > TODAY()) break;
+      const a = assignmentFor(tech, date); const c = dayCalc(tech, date);
+      const status = c.d ? "On duty" : a?.type === "leave" ? "Leave" : a?.type === "off" ? "Off duty" : c.emH ? "Emergency" : "—";
+      if (c.d) on++;
+      tH += c.dutyH; tE += c.emH; tO += c.ot; tS += c.d ? c.covN : 0; tK += c.km;
+      const wd = c.d ? (c.d.work || []).map((w) => `${site(w.site)?.name}: ${w.desc}`).join("; ") : "";
+      const sl = slotOf(c.d);
+      rows.push(`<tr class="${c.d ? "" : "off"}"><td class="mono">${fmtD(date, { day: "2-digit", month: "short" })}</td><td>${parse(date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td>${status}</td><td>${sl ? sl.shift : ""}</td><td>${sl ? esc(sl.tag || sl.name) + (sl.zone ? " · " + esc(zone(sl.zone)?.name) : "") : ""}</td><td class="num">${c.d?.start || ""}</td><td class="num">${c.d?.end || (c.d ? "open" : "")}</td><td class="num">${c.dutyH ? fmtH(c.dutyH) : ""}</td><td class="num">${c.emH ? fmtH(c.emH) : ""}</td><td class="num">${c.ot ? fmtH(c.ot) : ""}</td><td>${c.d ? (!c.d.driver ? '<span class="pill">Passenger</span>' : '<span class="pill blue">Driver</span>') : ""}</td><td class="num">${c.d && c.d.driver ? (c.d.end ? c.km : "open") : ""}</td><td class="num">${c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : ""}</td><td class="wd">${esc(wd)}</td></tr>`);
+    }
+    return `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th>Status</th><th>Shift</th><th>Area · Zone</th><th class="num">Start</th><th class="num">Finish</th><th class="num">Hours</th><th class="num">Emerg.</th><th class="num">OT</th><th>Car</th><th class="num">Km</th><th class="num">Sites</th><th>Work done</th></tr></thead>
+      <tbody>${rows.reverse().join("")}</tbody><tfoot><tr><td colspan="3">${on} duty day(s)</td><td colspan="4"></td><td class="num">${fmtH(tH)}</td><td class="num">${fmtH(tE)}</td><td class="num">${fmtH(tO)}</td><td></td><td class="num">${tK}</td><td class="num">${tS}</td><td></td></tr></tfoot></table></div>
+      <p class="small muted">OT = (duty hours − 9) + approved emergency hours.</p>`;
+  }
+  function supSheet(id, month) {
+    const wd = supWorkDays(id, month).reverse();
+    const ds = wd.map((x) => x.rec || { date: x.date, plan: [], visits: [], work: [], none: true });
+    let tA = 0, tV = 0, tW = 0;
+    const rows = ds.map((d) => {
+      if (d.none) return `<tr><td class="mono">${fmtD(d.date, { day: "2-digit", month: "short" })}</td><td>${parse(d.date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td class="num">0</td><td class="num"><span class="pill red">0</span></td><td class="err small">No site visit on a working day</td><td class="num">0</td><td></td></tr>`;
+      const wrong = S.logs.filter((l) => l.type === "location" && l.tech === id && l.at.slice(0, 10) === d.date).length; tA += (d.plan || []).length; tV += d.visits.length; tW += wrong;
+      const times = [...d.visits].sort((a, b) => a.time.localeCompare(b.time)).map((v) => `<div><span class="mono">${v.time}</span> ${esc(site(v.site)?.name)}</div>`).join("");
+      const missed = (d.plan || []).filter((x) => !d.visits.some((v) => v.site === x)).map((x) => esc(site(x)?.name));
+      return `<tr><td class="mono">${fmtD(d.date, { day: "2-digit", month: "short" })}</td><td>${parse(d.date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td class="num">${(d.plan || []).length}</td><td class="num"><b>${d.visits.length}</b></td><td>${times || '<span class="muted">—</span>'}${missed.length ? `<div class="small err">Not scanned: ${missed.join(", ")}</div>` : ""}</td><td class="num">${wrong ? `<span class="pill red">${wrong}</span>` : "0"}</td><td class="wd">${esc((d.work || []).map((w) => `${site(w.site)?.name}: ${w.desc}`).join("; "))}</td></tr>`;
+    }).join("");
+    return `<div class="tiles"><div class="tile"><b>${ds.filter((d) => d.visits.length).length}</b><span>Days with visits (of ${ds.length} working)</span></div><div class="tile"><b>${tV}</b><span>Sites scanned</span></div><div class="tile"><b>${ds.length ? r2(tV / ds.length) : 0}</b><span>Avg sites per day</span></div><div class="tile${tW ? " alert" : ""}"><b>${tW}</b><span>Wrong-location attempts</span></div></div>
+      <div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th class="num">Added</th><th class="num">Visited</th><th>Scan times</th><th class="num">Wrong loc.</th><th>Work done</th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="muted">No working days yet this month.</td></tr>'}</tbody>
+      <tfoot><tr><td colspan="2">${ds.length} working day(s)</td><td class="num">${tA}</td><td class="num">${tV}</td><td></td><td class="num">${tW}</td><td></td></tr></tfoot></table></div>`;
+  }
+  function engTimesheets() {
+    ui.tsMonth = ui.tsMonth || TODAY().slice(0, 7);
+    const people = [...sups(), ...techs()];
+    if (!ui.tsTech || !user(ui.tsTech)) ui.tsTech = (techs()[0] || people[0] || {}).id;
+    if (!ui.tsTech) return '<p class="empty">No people yet.</p>';
+    return `<div class="stack"><div class="row between"><h2>Timesheets</h2><div class="row">
+      <label class="field"><span>Person</span><select id="tsTech">${people.map((t) => `<option value="${t.id}" ${t.id === ui.tsTech ? "selected" : ""}>${esc(t.name)}</option>`).join("")}</select></label>
+      <label class="field"><span>Month</span><input type="month" id="tsMonth" value="${ui.tsMonth}" max="${TODAY().slice(0, 7)}"></label>
+      <button class="btn" data-act="xlsOne">Export Excel</button><button class="btn" data-act="xlsAll">Export all (one file)</button></div></div>${user(ui.tsTech)?.role === "supervisor" ? supSheet(ui.tsTech, ui.tsMonth) : sheetTable(ui.tsTech, ui.tsMonth)}
+      <p class="small muted">The app keeps the last ${100} days on screen. Older data stays in the Google Sheet.</p></div>`;
+  }
+  function supKpiHTML(list, month, editable) {
+    const T = S.supTarget || 8;
+    return `<div class="row between"><h3>Supervisors</h3>${editable ? "" : `<span class="pill blue">Target ${T} sites / day · Mon–Sat</span>`}</div>
+      <div class="tablewrap"><table><thead><tr><th>Supervisor</th><th>Score</th><th>Own site visits · ${S.supW.own}%</th><th>Team KPI · ${S.supW.team}%</th><th class="num">Avg sites / day</th><th class="num">Days target met</th><th class="num">Days with no visit</th><th class="num">Wrong loc.</th></tr></thead><tbody>
+      ${list.map((u) => { const k = supKpi(u.id, month); const r = rating(k.score); return `<tr><td><b>${esc(u.name)}</b></td><td>${k.score == null ? '<span class="muted">—</span>' : `<span class="mono">${k.score}</span> <span class="pill ${r[0]}">${r[1]}</span>`}</td><td><span class="row" style="gap:8px;flex-wrap:nowrap">${bar((k.own ?? 0) / 100, "--blue")}<span class="mono">${k.own ?? "—"}</span></span></td><td><span class="row" style="gap:8px;flex-wrap:nowrap">${bar((k.team ?? 0) / 100)}<span class="mono">${k.team ?? "—"}</span></span></td><td class="num">${k.avg}/${T}</td><td class="num">${k.met}/${k.days}</td><td class="num">${k.zero ? `<span class="pill red">${k.zero}</span>` : "0"}</td><td class="num">${k.wrong ? `<span class="pill red">${k.wrong}</span>` : "0"}</td></tr>`; }).join("")}
+      </tbody></table></div><p class="small muted">Supervisor score = ${S.supW.own}% own site visits + ${S.supW.team}% average KPI of his technicians. Own site visits = average per working day (Mon–Sat) of sites scanned ÷ ${T}, capped at 100%; a working day with no visits counts as 0.</p>`;
+  }
+  function kpiTableHTML(list, month) {
+    const rows = teamKpi(list, month);
+    return `<div class="tablewrap"><table><thead><tr><th>Technician</th><th>Score</th><th>Site visits</th><th>Job closure</th><th class="num">Km driven</th><th class="num">Driving days</th><th class="num">Work entries</th><th class="num">Duty days</th><th class="num">OT h</th><th class="num">Wrong loc.</th></tr></thead><tbody>
+      ${rows.map(({ t, k, score }) => { const r = rating(score); return `<tr><td><b>${esc(t.name)}</b></td><td>${score == null ? '<span class="muted">—</span>' : `<span class="mono">${score}</span> <span class="pill ${r[0]}">${r[1]}</span>`}</td><td><span class="row" style="gap:8px;flex-wrap:nowrap">${bar(k.coverage)}<span class="mono">${Math.round(k.coverage * 100)}%</span></span></td><td>${k.jobRate == null ? '<span class="muted small">No jobs</span>' : `<span class="row" style="gap:8px;flex-wrap:nowrap">${bar(k.jobRate, "--amber")}<span class="mono">${k.jobsDone}/${k.jobsTotal}</span></span>`}</td><td class="num">${k.km}</td><td class="num">${k.drivingDays}</td><td class="num">${k.workEntries}</td><td class="num">${k.days}</td><td class="num">${fmtH(k.ot)}</td><td class="num">${k.wrong ? `<span class="pill red">${k.wrong}</span>` : "0"}</td></tr>`; }).join("")}
+      </tbody></table></div>${KPI_NOTE()}`;
+  }
+  function engKpi() {
+    ui.kpiMonth = ui.kpiMonth || TODAY().slice(0, 7);
+    return `<div class="stack"><div class="row between"><h2>KPI</h2><label class="field"><span>Month</span><input type="month" id="kpiMonth" value="${ui.kpiMonth}" max="${TODAY().slice(0, 7)}"></label></div>
+      <section class="card">${supKpiHTML(sups(), ui.kpiMonth, true)}</section>
+      <section class="card"><h3>Technicians</h3>${kpiTableHTML(techs(), ui.kpiMonth)}</section>
+      <form class="card" id="fKpiSet"><h3>KPI settings</h3><div class="form-inline">
+        <label class="field"><span>Site visits %</span><input type="number" id="wSite" min="0" max="100" value="${S.kpiW.site}"></label>
+        <label class="field"><span>Job closure %</span><input type="number" id="wJob" min="0" max="100" value="${S.kpiW.job}"></label>
+        <label class="field"><span>Driving %</span><input type="number" id="wDrive" min="0" max="100" value="${S.kpiW.drive}"></label>
+        <label class="field"><span>Supervisor target (sites/day)</span><input type="number" id="wTarget" min="1" max="40" value="${S.supTarget}"></label>
+        <label class="field"><span>Supervisor: own visits %</span><input type="number" id="wOwn" min="0" max="100" value="${S.supW.own}"></label>
+        <label class="field"><span>Supervisor: team KPI %</span><input type="number" id="wTeam" min="0" max="100" value="${S.supW.team}"></label>
+        <button class="btn primary">Save settings</button></div></form></div>`;
+  }
+  function engLogs() { return `<section class="card"><h2>Activity log</h2><p class="small muted">Wrong-location attempts, phone and login history, approvals.</p>${S.logs.map(logRow).join("") || '<p class="empty">No entries.</p>'}</section>`; }
+
+  /* ================= jobs & messages ================= */
+  const JST = { open: ["blue", "Open"], pending_sup: ["amber", "With supervisor"], pending_eng: ["amber", "With engineer"], closed: ["green", "Closed"] };
+  function jobItem(j, mode) {
+    const st = JST[j.status] || ["", j.status]; const late = j.status === "open" && j.due && j.due < TODAY();
+    let act = "";
+    if (mode === "tech" && j.status === "open") act = `<div class="form-inline"><input placeholder="What was done (required)" data-jnote="${j.id}" aria-label="Completion note"><button class="btn sm go" data-act="jobDone" data-id="${j.id}">Mark complete</button></div>`;
+    if (mode === "sup" || mode === "eng") act = decideBtns("job", j.id, mode);
+    if (mode === "view" && j.status === "open" && (j.by === viewer || me().role === "engineer")) act = `<div><button class="btn sm danger" data-act="jobCancel" data-id="${j.id}">Cancel job</button></div>`;
+    return `<div class="item"><div class="row between"><span><span class="mono muted">${esc(j.no)}</span> · <b>${esc(site(j.site)?.name)}</b> <span class="small muted">${esc(site(j.site)?.area)}</span></span><span class="row">${late ? '<span class="pill red">Overdue</span>' : ""}<span class="pill ${st[0]}">${st[1]}</span></span></div>
+      <div>${esc(j.desc)}</div>
+      <div class="small muted">To ${esc(nm(j.assignee))} · from ${esc(nm(j.by))}${j.due ? " · due " + fmtD(j.due) : ""}</div>
+      ${j.note ? `<div class="small"><b>Done:</b> ${esc(j.note)}</div>` : ""}
+      ${j.returnComment && j.status === "open" ? `<div class="errs">Returned: ${esc(j.returnComment)}</div>` : ""}${act}</div>`;
+  }
+  function openJobsCard() {
+    const mine = S.jobs.filter((j) => j.assignee === viewer && j.status === "open");
+    if (!mine.length) return "";
+    return `<section class="card hl"><h2>Jobs assigned to me (${mine.length})</h2>${mine.map((j) => jobItem(j, "tech")).join("")}</section>`;
+  }
+  function techJobs() {
+    const mine = S.jobs.filter((j) => j.assignee === viewer).sort((a, b) => (a.status === "open" ? 0 : 1) - (b.status === "open" ? 0 : 1) || b.created.localeCompare(a.created));
+    return `<div class="stack narrow"><section class="card"><h2>My jobs</h2><p class="small muted">When you mark a job complete it goes to your supervisor, then to the Engineer.</p>${mine.length ? mine.map((j) => jobItem(j, "tech")).join("") : '<p class="empty">No jobs assigned.</p>'}</section></div>`;
+  }
+  function jobsAdmin() {
+    const isEng = me().role === "engineer";
+    const people = isEng ? [...sups(), ...techs()] : techs(viewer);
+    const ids = people.map((p) => p.id);
+    let list = S.jobs.filter((j) => isEng || j.by === viewer || ids.includes(j.assignee)).sort((a, b) => b.created.localeCompare(a.created));
+    if (ui.jobFilter === "active") list = list.filter((j) => j.status !== "closed"); else if (ui.jobFilter === "closed") list = list.filter((j) => j.status === "closed");
+    const grp = (label, arr) => arr.length ? `<optgroup label="${label}">${arr.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</optgroup>` : "";
+    const slotsForSites = isEng ? S.slots : supSlots(viewer);
+    return `<div class="cols2"><form class="card" id="fJob"><h2>Assign a job</h2>
+        <label class="field"><span>Assign to</span><select id="jbWho" required><option value="">Select person</option>${isEng ? grp("Supervisors", sups()) : ""}${grp("Technicians", isEng ? techs() : techs(viewer))}</select></label>
+        <label class="field"><span>Site</span><select id="jbSite" required><option value="">Select site</option>${slotsForSites.filter((s) => s.sites.length && s.shift !== "Night").map((s) => `<optgroup label="${esc(s.tag || s.name)}">${s.sites.map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+        <label class="field"><span>Job description</span><textarea id="jbDesc" required placeholder="e.g. Replace breakaway coupling on Line 1 and leak test"></textarea></label>
+        <label class="field"><span>Due date (optional)</span><input type="date" id="jbDue" min="${TODAY()}"></label>
+        <button class="btn primary">Assign job</button>
+        <p class="small muted">Flow: assigned → completed → supervisor approves → Engineer closes.</p></form>
+      <section class="card"><div class="row between"><h2>Jobs</h2><select id="jobFilter" aria-label="Filter"><option value="active" ${ui.jobFilter === "active" ? "selected" : ""}>Active</option><option value="closed" ${ui.jobFilter === "closed" ? "selected" : ""}>Closed</option><option value="all" ${ui.jobFilter === "all" ? "selected" : ""}>All</option></select></div>
+        ${list.length ? list.map((j) => jobItem(j, "view")).join("") : '<p class="empty">No jobs.</p>'}</section></div>`;
+  }
+  function messagesView() {
+    const u = me();
+    const mine = S.threads.slice().sort((a, b) => b.msgs[b.msgs.length - 1].at.localeCompare(a.msgs[a.msgs.length - 1].at));
+    let opts;
+    if (u.role === "technician") opts = `${u.sup ? `<option value="${u.sup}">My supervisor – ${esc(nm(u.sup))}</option>` : ""}<option value="${engId()}">Engineer – ${esc(nm(engId()))}</option>${u.sup ? `<option value="${u.sup},${engId()}">Both</option>` : ""}`;
+    else if (u.role === "supervisor") opts = `<option value="${engId()}">Engineer – ${esc(nm(engId()))}</option>${techs(viewer).map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}`;
+    else opts = S.users.filter((x) => x.id !== viewer).map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("");
+    const thread = (t) => {
+      const open = ui.openThread === t.id; const last = t.msgs[t.msgs.length - 1]; const unread = t.unread.includes(viewer);
+      const who = [t.from, ...t.to].filter((x) => x !== viewer).map(nm).join(", ");
+      return `<div class="item"><button class="threadhead" data-act="openThread" data-id="${t.id}" aria-expanded="${open}"><span><b>${esc(t.subject || "(no subject)")}</b>${unread ? ' <span class="pill red">New</span>' : ""}<br><span class="small muted">With ${esc(who)} · ${dt(last.at)}</span></span><span class="muted">${open ? "▲" : "▼"}</span></button>
+        ${open ? `<div class="msgs">${t.msgs.map((m) => `<div class="msg${m.by === viewer ? " me" : ""}"><span class="small muted">${esc(nm(m.by))} · ${dt(m.at)}</span><div>${esc(m.text)}</div></div>`).join("")}</div>
+          <form class="form-inline" data-reply="${t.id}"><input required placeholder="Write a reply" aria-label="Reply" style="flex:1 1 200px"><button class="btn primary">Send</button></form>` : `<div class="small muted">${esc(last.text.slice(0, 120))}</div>`}</div>`;
+    };
+    return `<div class="cols2"><form class="card" id="fMsg"><h2>New message</h2>
+        <label class="field"><span>To</span><select id="msgTo" required>${opts}</select></label>
+        <label class="field"><span>Subject</span><input id="msgSub" placeholder="e.g. Spare parts needed at KHK"></label>
+        <label class="field"><span>Message</span><textarea id="msgText" required placeholder="Write your comment"></textarea></label>
+        <button class="btn primary">Send</button></form>
+      <section class="card"><h2>Conversations</h2>${mine.length ? mine.map(thread).join("") : '<p class="empty">No messages yet.</p>'}</section></div>`;
+  }
+
+  /* ================= technician ================= */
+  function techToday() {
+    if (me().role === "supervisor") return supToday();
+    const a = myAssignment(viewer, TODAY());
+    const d = openDutyOf(viewer);
+    let hero;
+    const shownSlot = d ? slotOf(d) : (a && a.type === "duty" ? a.slot : null);
+    if (shownSlot) hero = `<div class="phone-hero"><div class="row between"><span class="pill">${fmtD(d ? d.date : TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span>${a && a.fallback ? `<span class="pill">Last approved roster</span>` : ""}</div>
+      <h2>${esc(shownSlot.name)} ${tagHTML(shownSlot)}</h2><p class="sub">${shownSlot.zone ? esc(zone(shownSlot.zone)?.name) + " · " : ""}${shownSlot.shift} shift ${shownSlot.shift === "Night" ? "19:00–07:00" : "07:00–19:00"} · ${shownSlot.sites.length} sites</p>
+      ${a && a.monitoring ? '<p><span class="pill" style="background:#69BD45;color:#0B2E12">Monitoring in-charge today</span></p>' : ""}</div>`;
+    else hero = `<div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>${a?.type === "off" ? "Off duty today" : a?.type === "leave" ? "On leave today" : "Not on today's roster"}</h2><p class="sub">You can still record emergency duty from the Emergency tab.</p></div>`;
+    hero += openJobsCard();
+    if (!shownSlot) return `<div class="stack narrow">${hero}</div>`;
+    if (!d) {
+      return `<div class="stack narrow">${hero}<form class="card" id="fStart"><h2>Start duty</h2>
+        <div class="grid2"><label class="field"><span>Start time</span><input type="time" id="dsStart" value="${nowHM()}" required></label>
+        <label class="field"><span>Vehicle no.</span><input id="dsVeh" list="vehList" inputmode="numeric" maxlength="5" placeholder="5 digits" required></label>
+        <div class="field full"><span>In the car today</span><div class="seg" role="radiogroup"><label><input type="radio" name="dsCar" value="drive" checked> I am driving</label><label><input type="radio" name="dsCar" value="pass"> Passenger</label></div></div>
+        <label class="field full" id="kmWrap"><span>Opening km</span><input type="number" id="dsKm" inputmode="numeric" min="0" placeholder="Odometer reading"></label>
+        <label class="field full" id="drvWrap" hidden><span>Driver</span><select id="dsDrv"><option value="">Select driver</option>${S.users.filter((t) => t.id !== viewer && t.role !== "engineer").map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label></div>
+        <datalist id="vehList">${S.vehicles.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+        <p class="small muted">Only the driver records km. Km driven counts in the driver's KPI.</p>
+        <button class="btn go block">Start duty</button></form></div>`;
+    }
+    const sl = shownSlot;
+    const sitesHTML = sl.sites.map((sid) => { const x = site(sid); const v = d.visits.find((q) => q.site === sid);
+      return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ ${v.time}${v.gps && v.gps !== "verified" ? '<br><span class="small muted">GPS not set</span>' : ""}</span>` : d.end ? '<span class="muted small">Not visited</span>' : `<button class="btn sm primary" data-act="scan" data-id="${sid}">Scan QR</button>`}</div>`; }).join("");
+    const c = dayCalc(viewer, d.date);
+    const end = d.end ? `<div class="card"><h2>Duty closed</h2><div class="kv"><div><span class="label">Hours</span><b class="mono">${fmtH(c.dutyH)} h</b></div><div><span class="label">Overtime</span><b class="mono">${fmtH(c.ot)} h</b></div><div><span class="label">Km driven</span><b class="mono">${!d.driver ? "Passenger" : c.km}</b></div><div><span class="label">Sites</span><b class="mono">${c.covN}/${c.covT}</b></div></div></div>`
+      : `<form class="card" id="fEnd"><h2>End duty</h2><div class="grid2"><label class="field"><span>Closing time</span><input type="time" id="deEnd" value="${nowHM()}" required></label>${!d.driver ? `<div class="field"><span>Car</span><p class="small muted">Passenger${d.coDriver ? " with " + esc(nm(d.coDriver)) : ""}. No km needed.</p></div>` : `<label class="field"><span>Closing km</span><input type="number" id="deKm" min="${d.kmStart + 1}" required placeholder="&gt; ${d.kmStart}"></label>`}</div><p class="small muted" id="deCalc"></p><button class="btn primary block">End duty</button></form>`;
+    return `<div class="stack narrow">${hero}
+      <div class="card"><div class="kv"><div><span class="label">Started</span><b class="mono">${d.start}</b></div><div><span class="label">Vehicle</span><b class="mono">${esc(d.vehicle)}</b></div><div><span class="label">${!d.driver ? "Car" : "Opening km"}</span><b class="mono">${!d.driver ? "Passenger" : d.kmStart}</b></div><div><span class="label">Visited</span><b class="mono">${c.covN}/${sl.sites.length}</b></div></div></div>
+      <div class="card"><h2>Site check-in</h2><p class="small muted">Scan the QR code fixed at the site. Your location must be within ${S.radius} m of the site.</p><div>${sitesHTML}</div></div>
+      ${workCard(d, sl, false)}${end}</div>`;
+  }
+  function workCard(d, sl, isSup) {
+    const mineSites = sl.sites.map(site).filter(Boolean); const others = S.sites.filter((x) => !sl.sites.includes(x.id));
+    return `<form class="card" id="fWork"><h2>Work done today</h2><p class="small muted">Add maintenance or any other work. It appears in the timesheet.</p>
+      <label class="field"><span>Site</span><select id="wkSite" required><option value="">Select site</option><optgroup label="${isSup ? "My team's sites" : "My sites"}">${mineSites.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</optgroup>${others.length ? `<optgroup label="Other sites">${others.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</optgroup>` : ""}</select></label>
+      <label class="field"><span>Description</span><textarea id="wkDesc" required placeholder="e.g. Replaced solenoid valve, leak test OK"></textarea></label>
+      <button class="btn primary">Add work</button>
+      <div>${d && (d.work || []).length ? d.work.map((w) => `<div class="visit"><span class="small"><span class="mono muted">${w.time}</span> · <b>${esc(site(w.site)?.name)}</b><br>${esc(w.desc)}</span><button type="button" class="btn sm danger" data-act="wkDel" data-id="${w.id}">Remove</button></div>`).join("") : '<p class="empty">Nothing added yet.</p>'}</div></form>`;
+  }
+  function techEmergency() {
+    const now = new Date(); const min = localDT(new Date(now - 72 * 3600e3)), max = localDT(now);
+    const mine = S.emergencies.filter((e) => e.tech === viewer).sort((a, b) => b.start.localeCompare(a.start));
+    const ed = ui.emEdit ? S.emergencies.find((e) => e.id === ui.emEdit) : null;
+    const st = { pending_sup: ["amber", "With supervisor"], pending_eng: ["amber", "With engineer"], approved: ["green", "Approved · in timesheet"], returned: ["red", "Returned"] };
+    return `<div class="stack narrow"><form class="card" id="fEm"><h2>${ed ? "Correct and resubmit" : "Emergency duty"}</h2>
+      <p class="small muted">Enter within 72 hours of the incident. Approval: Supervisor → Engineer, then added to your timesheet.</p>
+      <label class="field"><span>Site</span><select id="emSite" required><option value="">Select site</option>${S.sites.map((x) => `<option value="${x.id}" ${ed?.site === x.id ? "selected" : ""}>${esc(x.name)} · ${esc(x.area)}</option>`).join("")}</select></label>
+      <div class="grid2"><label class="field"><span>Start</span><input type="datetime-local" id="emStart" min="${min}" max="${max}" value="${ed ? ed.start.slice(0, 16) : ""}" required></label>
+      <label class="field"><span>End</span><input type="datetime-local" id="emEnd" min="${min}" max="${max}" value="${ed ? ed.end.slice(0, 16) : ""}" required></label></div>
+      <label class="field"><span>Emergency situation</span><textarea id="emDesc" required placeholder="What happened and what you did">${esc(ed?.desc || "")}</textarea></label>
+      <div class="row"><button class="btn primary">${ed ? "Resubmit" : "Submit"}</button>${ed ? '<button type="button" class="btn" data-act="emCancel">Cancel</button>' : ""}</div></form>
+      <section class="card"><h2>My entries</h2>${mine.length ? mine.map((e) => `<div class="item"><div class="row between"><b>${esc(site(e.site)?.name)}</b><span class="pill ${(st[e.status] || [""])[0]}">${(st[e.status] || ["", e.status])[1]}</span></div><div class="small mono">${dt(e.start)} → ${dt(e.end)}</div><div class="small">${esc(e.desc)}</div>${e.status === "returned" ? `<div class="errs">Comment: ${esc(e.comment)}</div><div><button class="btn sm" data-act="emEdit" data-id="${e.id}">Correct and resubmit</button></div>` : ""}</div>`).join("") : '<p class="empty">No emergency entries.</p>'}</section></div>`;
+  }
+  function leaveMin() { const t = new Date(Date.now() + 24 * 3600e3); const d = iso(t); return (t.getHours() || t.getMinutes()) ? addDays(d, 1) : d; }
+  function techLeave() {
+    const mine = S.leaves.filter((l) => l.tech === viewer).sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
+    const st = { pending_sup: ["amber", "With supervisor"], pending_eng: ["amber", "With engineer"], approved: ["green", "Approved"], returned: ["red", "Returned"] };
+    return `<div class="stack narrow"><form class="card" id="fLeave"><h2>Request leave</h2>
+      <p class="small muted">Request at least 24 hours before the first leave day. Earliest date now: <b>${fmtD(leaveMin())}</b>.</p>
+      <div class="form-inline"><label class="field"><span>Add a day</span><input type="date" id="lvDate" min="${leaveMin()}"></label><button type="button" class="btn" data-act="lvAdd">Add day</button></div>
+      <div class="datelist">${ui.leaveDates.length ? ui.leaveDates.map((d) => `<button type="button" class="chip" data-act="lvRemove" data-d="${d}" aria-label="Remove ${d}">${fmtD(d)} ✕</button>`).join("") : '<span class="muted small">No days selected.</span>'}</div>
+      <label class="field"><span>Reason (optional)</span><input id="lvReason" placeholder="e.g. Personal, medical"></label>
+      <button class="btn primary" ${ui.leaveDates.length ? "" : "disabled"}>Submit ${ui.leaveDates.length || ""} day${ui.leaveDates.length === 1 ? "" : "s"}</button></form>
+      <section class="card"><h2>My requests</h2>${mine.length ? mine.map((l) => `<div class="item"><div class="row between"><b>${l.dates.map((d) => fmtD(d)).join(", ")}</b><span class="pill ${(st[l.status] || [""])[0]}">${(st[l.status] || ["", l.status])[1]}</span></div>${l.status === "returned" ? `<div class="errs">Comment: ${esc(l.comment)}</div>` : ""}</div>`).join("") : '<p class="empty">No requests.</p>'}</section></div>`;
+  }
+  function techSheet() { return `<div class="stack"><div class="row between"><h2>My timesheet · ${parse(TODAY()).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</h2></div>${sheetTable(viewer, TODAY().slice(0, 7))}</div>`; }
+  function techKpi() {
+    const month = TODAY().slice(0, 7); const row = teamKpi([me()], month)[0]; const { k, score } = row; const r = rating(score);
+    const ds = S.duties.filter((d) => d.tech === viewer && d.date.slice(0, 7) === month && d.end).sort((a, b) => b.date.localeCompare(a.date));
+    return `<div class="stack narrow">
+      <div class="card"><span class="label">My KPI · ${parse(TODAY()).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</span>
+        <div class="row"><span class="score">${score ?? "—"}</span><span class="pill ${r[0]}">${r[1]}</span></div>
+        <div class="stack" style="gap:10px">
+          <div class="row between"><span>Site visits · ${S.kpiW.site}%</span><span class="row">${bar(k.coverage)}<b class="mono">${Math.round(k.coverage * 100)}%</b></span></div>
+          <div class="row between"><span>Job closure · ${S.kpiW.job}%</span><span class="row">${bar(k.jobRate ?? 0, "--amber")}<b class="mono">${k.jobRate == null ? "No jobs" : k.jobsDone + "/" + k.jobsTotal}</b></span></div>
+          <div class="row between"><span>Driving · ${S.kpiW.drive}%</span><span class="row">${bar(row.kmScore, "--blue")}<b class="mono">${k.km} km</b></span></div>
+        </div>
+        <div class="kv"><div><span class="label">Duty days</span><b class="mono">${k.days}</b></div><div><span class="label">Driving days</span><b class="mono">${k.drivingDays}</b></div><div><span class="label">OT</span><b class="mono">${fmtH(k.ot)} h</b></div><div><span class="label">Wrong location</span><b class="mono">${k.wrong}</b></div></div>
+        ${KPI_NOTE()}</div>
+      <section class="card"><h2>Daily coverage</h2>${ds.length ? ds.map((d) => { const c = dayCalc(viewer, d.date); const sl = slotOf(d);
+        return `<div class="visit"><span><b>${fmtD(d.date)}</b> ${sl ? tagHTML(sl) : ""}<br><span class="small muted">${!d.driver ? "Passenger" : c.km + " km"} · ${(d.work || []).length} work entr${(d.work || []).length === 1 ? "y" : "ies"}</span></span><span class="row">${bar(c.covT ? c.covN / c.covT : 0)}<span class="mono">${c.covN}/${c.covT}</span></span></div>`; }).join("") : '<p class="empty">No closed duties this month.</p>'}</section></div>`;
+  }
+
+  /* ================= QR scan + GPS ================= */
+  let scanner = null, scanBusy = false;
+  async function stopScanner() { if (scanner) { try { await scanner.stop(); } catch (e) {} try { scanner.clear(); } catch (e) {} scanner = null; } }
+  function scanMsg(html) { const el = $("#scanStatus"); if (el) el.innerHTML = html; }
+  async function openScan(siteId) {
+    const x = site(siteId); scanBusy = false;
+    $("#dScanBody").innerHTML = `<div class="row between"><h2>Scan site QR</h2><button class="btn sm" data-act="closeScan" aria-label="Close">✕</button></div>
+      <p class="small muted">Point the camera at the QR code at <b>${esc(x.name)}</b>.</p><div id="qrReader"></div><div id="scanStatus" class="small"></div>`;
+    $("#dScan").showModal();
+    if (!window.Html5Qrcode) { scanMsg('<div class="errs">Scanner could not load. Check internet and reload the app.</div>'); return; }
+    try {
+      scanner = new Html5Qrcode("qrReader", { verbose: false });
+      await scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 220, height: 220 } }, (text) => onDecoded(text, siteId), () => {});
+    } catch (e) {
+      scanMsg('<div class="errs">Camera not available. Allow camera access for this app in your phone settings, then try again.</div>');
+    }
+  }
+  function getPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error("Location is not supported on this phone."));
+      navigator.geolocation.getCurrentPosition((p) => resolve(p.coords), (err) => reject(new Error(err.code === 1 ? "Location permission denied. Allow location for this app and try again." : "Could not get your location. Move to open sky and try again.")), { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    });
+  }
+  async function onDecoded(text, siteId) {
+    if (scanBusy) return; scanBusy = true;
+    await stopScanner();
+    const m = String(text).match(/^CEGFD:SITE:(.+)$/);
+    if (!m) { scanMsg('<div class="errs">This is not a CEG Field Duty site QR code.</div><button class="btn" data-act="rescan" data-id="' + siteId + '">Scan again</button>'); return; }
+    if (m[1] !== siteId) { scanMsg(`<div class="errs">This QR code belongs to <b>${esc(site(m[1])?.name || "another site")}</b>, not ${esc(site(siteId).name)}.</div><button class="btn" data-act="rescan" data-id="${siteId}">Scan again</button>`); return; }
+    scanMsg("Getting your location…");
+    let c;
+    try { c = await getPosition(); } catch (e) { scanMsg(`<div class="errs">${esc(e.message)}</div><button class="btn" data-act="rescan" data-id="${siteId}">Try again</button>`); return; }
+    scanMsg("Checking location…");
+    const r = await api("scan", { site: siteId, lat: c.latitude, lng: c.longitude, accuracy: Math.round(c.accuracy || 0) }, { quietError: true, silent: true });
+    if (r && r.ok) { $("#dScan").close(); toast(r.msg); }
+    else if (r) scanMsg(`<div class="errs" style="font-size:1rem"><b>${/Wrong location/.test(r.error) ? "Wrong location detected" : "Not saved"}</b><br>${esc(r.error)}</div><button class="btn block" data-act="closeScan">OK</button>`);
+  }
+  $("#dScan").addEventListener("close", () => { stopScanner(); });
+
+  /* ================= Excel export ================= */
+  function sheetRowsFor(id, month) {
+    const u = user(id); const [y, m] = month.split("-").map(Number); const days = new Date(y, m, 0).getDate();
+    const monthLabel = new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    const head = [["CLOUD ENERGI GAS LLC – TIME SHEET"], ["Name:", u.name, "", "Position:", u.role === "supervisor" ? "Supervisor" : "CNG Technician", "", "Contact:", u.mobile || ""], ["Month:", monthLabel], []];
+    const rows = [];
+    if (u.role === "supervisor") {
+      rows.push(["Date", "Day", "Sites added", "Sites visited", "Scan times", "Wrong-location attempts", "Work done"]);
+      supWorkDays(id, month).forEach((x) => { const d = x.rec; rows.push([x.date, parse(x.date).toLocaleDateString("en-GB", { weekday: "long" }), d ? (d.plan || []).length : 0, x.n, d ? [...d.visits].sort((a, b) => a.time.localeCompare(b.time)).map((v) => v.time + " " + (site(v.site)?.name || "")).join(", ") : "No site visit", S.logs.filter((l) => l.type === "location" && l.tech === id && l.at.slice(0, 10) === x.date).length, d ? (d.work || []).map((w) => (site(w.site)?.name || "") + ": " + w.desc).join("; ") : ""]); });
+    } else {
+      rows.push(["Date", "Day", "On/Off Duty", "Shift", "Area / Zone", "Start Time", "Finish Time", "Hours Worked", "Emergency Hours", "O.T", "Car", "Km Driven", "Sites Visited", "Work Done / Remarks"]);
+      let tH = 0, tE = 0, tO = 0, tK = 0, tS = 0;
+      for (let i = 1; i <= days; i++) {
+        const date = month + "-" + pad(i); if (date > TODAY()) break;
+        const a = assignmentFor(id, date); const c = dayCalc(id, date); const sl = slotOf(c.d);
+        tH += c.dutyH; tE += c.emH; tO += c.ot; tK += c.km; tS += c.covN;
+        rows.push([date, parse(date).toLocaleDateString("en-GB", { weekday: "long" }), c.d ? "On Duty" : a?.type === "leave" ? "Leave" : a?.type === "off" ? "Off Duty" : c.emH ? "Emergency" : "", sl ? sl.shift : "", sl ? (sl.tag || sl.name) + (sl.zone ? " · " + (zone(sl.zone)?.name || "") : "") : "", c.d?.start || "", c.d?.end || "", c.dutyH ? r2(c.dutyH) : "", c.emH ? r2(c.emH) : "", c.ot ? r2(c.ot) : "", c.d ? (c.d.driver ? "Driver" : "Passenger") : "", c.d && c.d.driver && c.d.end ? c.km : "", c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : "", c.d ? (c.d.work || []).map((w) => (site(w.site)?.name || "") + ": " + w.desc).join("; ") : ""]);
+      }
+      rows.push(["Total", "", "", "", "", "", "", r2(tH), r2(tE), r2(tO), "", tK, tS, ""]);
+    }
+    const foot = [[], ["Submit By:", u.name, "", "Checked By:", nm(engId())], ["Comments:"]];
+    return head.concat(rows, foot);
+  }
+  function exportXls(ids, month) {
+    if (!window.XLSX) { toast("Excel library could not load. Check internet.", true); return; }
+    const wb = XLSX.utils.book_new();
+    ids.forEach((id) => {
+      const ws = XLSX.utils.aoa_to_sheet(sheetRowsFor(id, month));
+      ws["!cols"] = [{ wch: 12 }, { wch: 11 }, { wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 60 }];
+      XLSX.utils.book_append_sheet(wb, ws, (user(id).name || id).replace(/[\\/?*[\]:]/g, "").slice(0, 30));
+    });
+    XLSX.writeFile(wb, ids.length === 1 ? `Time sheet ${user(ids[0]).name} ${month}.xlsx` : `CEG Time sheets ${month}.xlsx`);
+  }
+
+  /* ================= account ================= */
+  function openAccount() {
+    const u = me();
+    $("#dAcctBody").innerHTML = `<div class="row between"><h2>${esc(u.name)}</h2><button class="btn sm" data-act="closeAcct" aria-label="Close">✕</button></div>
+      <p class="small muted">${u.role === "engineer" ? "Engineer" : u.role === "supervisor" ? "Supervisor" : "CNG Technician"} · ${esc(u.mobile)}</p>
+      <form class="stack" id="fPin" style="gap:10px"><h3>Change PIN</h3><div class="grid2"><label class="field"><span>Current PIN</span><input type="password" id="opin" inputmode="numeric" maxlength="4" required></label><label class="field"><span>New PIN</span><input type="password" id="npin" inputmode="numeric" maxlength="4" required></label></div><button class="btn primary">Change PIN</button></form>
+      <button class="btn danger" data-act="logout">Log out</button>`;
+    $("#dAcct").showModal();
+  }
+
+  /* ================= render ================= */
+  function render() {
+    if (!S) return;
+    const u = me(); if (!u) { logoutLocal("Your account is no longer active."); return; }
+    $("#loginView").hidden = true; $("#appView").hidden = false;
+    if (!tab || !TABS[u.role].some((x) => x[0] === tab)) { const saved = LS.get("cfd.tab"); tab = TABS[u.role].some((x) => x[0] === saved) ? saved : TABS[u.role][0][0]; }
+    renderTabs();
+    const roleLabel = { engineer: "Engineer", supervisor: "Supervisor", technician: "CNG Technician" }[u.role];
+    $("#roleLine").textContent = "Cloud Energi Gas · " + roleLabel;
+    $("#whoBox").innerHTML = `${esc(u.name)}<span>${roleLabel}</span>`;
+    $("#syncInfo").textContent = lastSync ? "Updated " + nowHM() : "";
+    const views = {
+      engineer: { overview: engOverview, approvals: engApprovals, jobs: jobsAdmin, messages: messagesView, board: boardView, team: engTeam, sites: engSites, qr: engQr, timesheets: engTimesheets, kpi: engKpi, logs: engLogs },
+      supervisor: { today: techToday, prepare: supPrepare, jobs: jobsAdmin, approvals: supApprovals, messages: messagesView, board: boardView, team: () => `<div class="stack"><section class="card"><h2>My team</h2>${teamTable(techs(viewer))}</section><section class="card"><h2>KPI · ${parse(TODAY()).toLocaleDateString("en-GB", { month: "long" })}</h2>${supKpiHTML([u], TODAY().slice(0, 7), false)}<h3>My technicians</h3>${kpiTableHTML(techs(viewer), TODAY().slice(0, 7))}</section></div>` },
+      technician: { today: techToday, jobs: techJobs, messages: messagesView, emergency: techEmergency, leave: techLeave, mysheet: techSheet, mykpi: techKpi, board: boardView }
+    }[u.role];
+    const focus = document.activeElement && document.activeElement.id;
+    $("#main").innerHTML = views[tab]();
+    if (focus && document.getElementById(focus)) { try { document.getElementById(focus).focus(); } catch (e) {} }
+  }
+
+  /* ================= events ================= */
+  document.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t.id === "boardDate") { ui.boardDate = t.value || TODAY(); render(); return; }
+    if (t.id === "prepDate") { ui.prepDate = t.value; ui.draft = null; render(); return; }
+    if (t.id === "tsTech") { ui.tsTech = t.value; render(); return; }
+    if (t.id === "tsMonth") { ui.tsMonth = t.value || TODAY().slice(0, 7); render(); return; }
+    if (t.id === "kpiMonth") { ui.kpiMonth = t.value || TODAY().slice(0, 7); render(); return; }
+    if (t.id === "jobFilter") { ui.jobFilter = t.value; render(); return; }
+    if (t.id === "qrSlot") { ui.qrSlot = t.value; render(); return; }
+    if (t.name === "dsCar") { const pass = t.value === "pass"; $("#kmWrap").hidden = pass; $("#drvWrap").hidden = !pass; return; }
+    if (t.id === "radius") { api("setting", { key: "radius", value: Math.max(20, +t.value || 200) }); return; }
+    if (t.id === "allowNoGps") { api("setting", { key: "allowNoGps", value: t.checked }); return; }
+    if (t.closest("#supEditor") && ui.draft) { if (applyEditorEvent(e, ui.draft, "s")) render(); return; }
+    const rk = t.closest("[data-roster]"); if (rk) { if (applyEditorEvent(e, ui.engEdit[rk.dataset.roster], "e")) render(); return; }
+    if (t.dataset.usup) { api("userUpdate", { id: t.dataset.usup, field: "sup", value: t.value }); return; }
+    if (t.dataset.umobile) { api("userUpdate", { id: t.dataset.umobile, field: "mobile", value: t.value }); return; }
+    if (t.dataset.slotf) { const [f, id] = t.dataset.slotf.split("|"); api("slotUpdate", { id, field: f, value: f === "mandatory" ? t.checked : t.value }); return; }
+    if (t.dataset.cov) { const [sl, si] = t.dataset.cov.split("|"); api("coverage", { slot: sl, site: si, on: t.checked }); return; }
+    if (t.dataset.sitef) { const [f, id] = t.dataset.sitef.split("|"); api("siteUpdate", { id, field: f, value: t.value.trim() }); return; }
+  });
+  document.addEventListener("input", (e) => {
+    if (e.target.id === "deEnd" || e.target.id === "deKm") {
+      const d = openDutyOf(viewer); if (!d) return;
+      const h = hoursBetween(d.start, $("#deEnd").value || nowHM()); const km = $("#deKm") ? +$("#deKm").value : 0;
+      $("#deCalc").textContent = `Duty ${fmtH(h)} h · OT ${fmtH(Math.max(0, h - 9))} h${km > d.kmStart ? " · " + (km - d.kmStart) + " km" : ""}`;
+    }
+  });
+  document.addEventListener("click", async (e) => {
+    const g = e.target.closest("[data-goto]"); if (g) { tab = g.dataset.goto; render(); return; }
+    if (e.target.closest("#supEditor") && ui.draft && e.target.closest("[data-soff]")) { applyEditorEvent(e, ui.draft, "s"); render(); return; }
+    const rk = e.target.closest("[data-roster]"); if (rk && e.target.closest("[data-eoff]")) { applyEditorEvent(e, ui.engEdit[rk.dataset.roster], "e"); render(); return; }
+    const b = e.target.closest("[data-act]"); if (!b) return;
+    const id = b.dataset.id; const cmt = () => (document.querySelector(`[data-cmt="${id}"]`)?.value || "").trim();
+    const arm = () => { if (b.dataset.armed) return true; b.dataset.armed = 1; b.classList.add("arm"); b.textContent = "Tap again to confirm"; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.classList.remove("arm"); } }, 4000); return false; };
+    switch (b.dataset.act) {
+      case "refresh": api("refresh", {}, { silent: true }); return;
+      case "account": openAccount(); return;
+      case "closeAcct": $("#dAcct").close(); return;
+      case "logout": $("#dAcct").close(); await api("logout", {}, { silent: true }); logoutLocal(""); return;
+      case "saveDraft": { const r = await api("saveRoster", { roster: ui.draft, submit: false }); if (r && r.ok) ui.draft = null; render(); return; }
+      case "submitRoster": { if (validate(ui.draft).length) return; const r = await api("saveRoster", { roster: ui.draft, submit: true }); if (r && r.ok) ui.draft = null; render(); return; }
+      case "recall": { const r = await api("recallRoster", { key: ui.draft.key }); if (r && r.ok) ui.draft = null; render(); return; }
+      case "approveRoster": { const r = ui.engEdit[b.dataset.key]; if (validate(r).length) return; const res = await api("approveRoster", { roster: { key: r.key, assign: r.assign, monitoring: r.monitoring, off: r.off } }); if (res && res.ok) delete ui.engEdit[r.key]; render(); return; }
+      case "decide": { const ok = b.dataset.ok === "1"; const c = cmt(); if (!ok && !c) { toast("Add a comment to return it", true); return; } api("decide", { kind: b.dataset.kind, id, ok, comment: c }); return; }
+      case "devOk": api("device", { id, ok: true }); return;
+      case "devNo": api("device", { id, ok: false }); return;
+      case "devReset": if (!arm()) return; api("deviceReset", { id }); return;
+      case "deactivate": if (!arm()) return; api("userUpdate", { id, field: "active", value: false }); return;
+      case "setPin": { const v = (document.querySelector(`[data-pinfor="${id}"]`)?.value || "").trim(); if (!/^\d{4}$/.test(v)) { toast("PIN must be 4 digits", true); return; } api("setPin", { id, pin: v }); return; }
+      case "hereGps": { try { busy(true); const c = await getPosition(); busy(false); api("siteUpdate", { id, field: "latlng", lat: c.latitude, lng: c.longitude }); toast("Accuracy about " + Math.round(c.accuracy) + " m"); } catch (err) { busy(false); toast(err.message, true); } return; }
+      case "print": drawQrs(); setTimeout(() => window.print(), 300); return;
+      case "xlsOne": exportXls([ui.tsTech], ui.tsMonth); return;
+      case "xlsAll": exportXls([...sups(), ...techs()].map((u) => u.id), ui.tsMonth); return;
+      case "scan": openScan(id); return;
+      case "rescan": openScan(id); return;
+      case "closeScan": $("#dScan").close(); return;
+      case "supRemove": api("supRemoveSite", { site: id }); return;
+      case "wkDel": api("delWork", { id }); return;
+      case "jobDone": { const n = (document.querySelector(`[data-jnote="${id}"]`)?.value || "").trim(); if (!n) { toast("Write what was done", true); return; } api("jobComplete", { id, note: n }); return; }
+      case "jobCancel": if (!arm()) return; api("jobCancel", { id }); return;
+      case "openThread": { ui.openThread = ui.openThread === id ? null : id; const t = S.threads.find((x) => x.id === id); if (ui.openThread && t && t.unread.includes(viewer)) api("msgRead", { id }, { silent: true }); else render(); return; }
+      case "emEdit": ui.emEdit = id; render(); return;
+      case "emCancel": ui.emEdit = null; render(); return;
+      case "lvAdd": { const v = $("#lvDate").value; if (!v) return; if (v < leaveMin()) { toast("Leave must be requested 24 hours before", true); return; } if (!ui.leaveDates.includes(v)) ui.leaveDates.push(v); ui.leaveDates.sort(); render(); return; }
+      case "lvRemove": ui.leaveDates = ui.leaveDates.filter((d) => d !== b.dataset.d); render(); return;
+    }
+  });
+  document.addEventListener("submit", async (e) => {
+    const f = e.target; if (f.id === "fLogin") return;
+    e.preventDefault();
+    if (f.id === "fStart") {
+      const veh = $("#dsVeh").value.trim(); const driver = document.querySelector('input[name="dsCar"]:checked').value === "drive";
+      if (!/^\d{5}$/.test(veh)) { toast("Vehicle number must be 5 digits.", true); return; }
+      if (driver && $("#dsKm").value === "") { toast("Enter opening km.", true); return; }
+      api("startDuty", { start: $("#dsStart").value, vehicle: veh, driver, coDriver: driver ? "" : $("#dsDrv").value, kmStart: driver ? +$("#dsKm").value : null });
+    } else if (f.id === "fEnd") {
+      api("endDuty", { end: $("#deEnd").value, kmEnd: $("#deKm") ? +$("#deKm").value : null });
+    } else if (f.id === "fWork") {
+      api("addWork", { site: $("#wkSite").value, desc: $("#wkDesc").value.trim() });
+    } else if (f.id === "fSupAdd") {
+      if ($("#supSite").value) api("supAddSite", { site: $("#supSite").value });
+    } else if (f.id === "fEm") {
+      const r = await api("emergency", { id: ui.emEdit || "", site: $("#emSite").value, start: $("#emStart").value, end: $("#emEnd").value, desc: $("#emDesc").value.trim() });
+      if (r && r.ok) { ui.emEdit = null; render(); }
+    } else if (f.id === "fLeave") {
+      if (!ui.leaveDates.length) return;
+      const r = await api("leave", { dates: ui.leaveDates, reason: $("#lvReason").value.trim() });
+      if (r && r.ok) { ui.leaveDates = []; render(); }
+    } else if (f.id === "fJob") {
+      api("jobCreate", { assignee: $("#jbWho").value, site: $("#jbSite").value, desc: $("#jbDesc").value.trim(), due: $("#jbDue").value });
+    } else if (f.id === "fMsg") {
+      api("msgSend", { to: $("#msgTo").value.split(",").filter(Boolean), subject: $("#msgSub").value.trim(), text: $("#msgText").value.trim() });
+    } else if (f.dataset.reply) {
+      const text = f.querySelector("input").value.trim(); if (text) api("msgReply", { id: f.dataset.reply, text }, { silent: true });
+    } else if (f.id === "fUser") {
+      api("userAdd", { name: $("#nuName").value.trim(), role: $("#nuRole").value, mobile: $("#nuMob").value.trim(), pin: $("#nuPin").value.trim(), sup: $("#nuSup").value });
+    } else if (f.id === "fZone") {
+      api("zoneAdd", { name: $("#nzName").value.trim() });
+    } else if (f.id === "fSlot") {
+      api("slotAdd", { name: $("#nslName").value.trim(), tag: $("#nslTag").value.trim(), zone: $("#nslZone").value });
+    } else if (f.id === "fSite") {
+      api("siteAdd", { name: $("#nsiName").value.trim(), area: $("#nsiArea").value.trim(), slot: $("#nsiSlot").value });
+    } else if (f.id === "fKpiSet") {
+      const W = { site: +$("#wSite").value || 0, job: +$("#wJob").value || 0, drive: +$("#wDrive").value || 0 };
+      if (W.site + W.job + W.drive !== 100) { toast("Technician weights must add up to 100.", true); return; }
+      const SW = { own: +$("#wOwn").value || 0, team: +$("#wTeam").value || 0 };
+      if (SW.own + SW.team !== 100) { toast("Supervisor weights must add up to 100.", true); return; }
+      await api("setting", { key: "kpiW", value: W }, { silent: true });
+      await api("setting", { key: "supW", value: SW }, { silent: true });
+      await api("setting", { key: "supTarget", value: Math.max(1, +$("#wTarget").value || 8) });
+    } else if (f.id === "fPin") {
+      const r = await api("changePin", { oldPin: $("#opin").value, newPin: $("#npin").value });
+      if (r && r.ok) $("#dAcct").close();
+    }
+  });
+
+  /* ================= auto refresh ================= */
+  setInterval(() => {
+    if (!S || document.hidden || busyCount || $("#dScan").open || $("#dAcct").open) return;
+    const a = document.activeElement; if (a && /INPUT|TEXTAREA|SELECT/.test(a.tagName)) return;
+    if (ui.draft && tab === "prepare") return;
+    api("refresh", {}, { silent: true, quietError: true });
+  }, 60000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && S && !busyCount) api("refresh", {}, { silent: true, quietError: true }); });
+
+  /* ================= start ================= */
+  if (LS.get("cfd.mobile")) $("#lgMobile").value = LS.get("cfd.mobile");
+  if (!API || API.indexOf("http") !== 0) { showLogin("App is not configured yet: the API link in config.js is empty."); }
+  else if (token) {
+    $("#appView").hidden = false;
+    $("#main").innerHTML = '<p class="empty">Loading…</p>';
+    api("refresh", {}, { silent: true, quietError: true }).then((r) => { if (!r || !r.ok) { if (!S) showLogin(r && r.error ? r.error : ""); } });
+  } else showLogin("");
+})();
+</script>
+</body>
+</html>
