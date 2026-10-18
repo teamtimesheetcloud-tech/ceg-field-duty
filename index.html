@@ -419,7 +419,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const covs = ds.map((d) => { const c = dayCalc(tech, d.date); return c.covT ? c.covN / c.covT : null; }).filter((x) => x !== null);
     const coverage = covs.length ? covs.reduce((a, b) => a + b, 0) / covs.length : 0;
     const km = ds.reduce((a, d) => a + dayCalc(tech, d.date).km, 0);
-    const jm = S.jobs.filter((j) => j.assignee === tech && j.created.slice(0, 7) === month);
+    const jm = S.jobs.filter((j) => j.assignee === tech && j.created.slice(0, 7) === month && j.status !== "requested" && j.status !== "rejected");
     const jobsDone = jm.filter((j) => j.status !== "open").length;
     return { jobsTotal: jm.length, jobsDone, jobRate: jm.length ? jobsDone / jm.length : null, days: ds.length, coverage, km, drivingDays: ds.filter((d) => d.driver).length, workEntries: ds.reduce((a, d) => a + (d.work || []).length, 0), ot: ds.reduce((a, d) => a + dayCalc(tech, d.date).ot, 0), wrong: S.logs.filter((l) => l.type === "location" && l.tech === tech && l.at.slice(0, 7) === month).length };
   }
@@ -459,8 +459,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     return { days: wd.length, visits, avg: wd.length ? r2(visits / wd.length) : 0, met: wd.filter((x) => x.n >= T).length, zero: wd.filter((x) => !x.n).length, own, team, score, wrong: S.logs.filter((l) => l.type === "location" && l.tech === id && l.at.slice(0, 7) === month).length };
   }
   function pendingFor(role, id) {
-    if (role === "engineer") return Object.values(S.rosters).filter((r) => r.status === "submitted").length + S.leaves.filter((l) => l.status === "pending_eng").length + S.emergencies.filter((e) => e.status === "pending_eng").length + S.users.filter((u) => u.device === "pending").length + S.jobs.filter((j) => j.status === "pending_eng").length;
-    if (role === "supervisor") { const mine = techs(id).map((t) => t.id); return S.leaves.filter((l) => l.status === "pending_sup" && mine.includes(l.tech)).length + S.emergencies.filter((e) => e.status === "pending_sup" && mine.includes(e.tech)).length + S.jobs.filter((j) => j.status === "pending_sup" && mine.includes(j.assignee)).length; }
+    if (role === "engineer") return Object.values(S.rosters).filter((r) => r.status === "submitted").length + S.leaves.filter((l) => l.status === "pending_eng").length + S.emergencies.filter((e) => e.status === "pending_eng").length + S.users.filter((u) => u.device === "pending").length + S.jobs.filter((j) => j.status === "pending_eng").length + engReqs().length;
+    if (role === "supervisor") { const mine = techs(id).map((t) => t.id); return S.leaves.filter((l) => l.status === "pending_sup" && mine.includes(l.tech)).length + S.emergencies.filter((e) => e.status === "pending_sup" && mine.includes(e.tech)).length + S.jobs.filter((j) => j.status === "pending_sup" && mine.includes(j.assignee)).length + supReqs(id).length; }
     return 0;
   }
 
@@ -576,7 +576,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const lv = S.leaves.filter((l) => l.status === "pending_sup" && mine.includes(l.tech));
     const em = S.emergencies.filter((e) => e.status === "pending_sup" && mine.includes(e.tech));
     const jb = S.jobs.filter((j) => j.status === "pending_sup" && mine.includes(j.assignee));
-    return `<div class="stack"><section class="card"><h2>Completed jobs</h2>${jb.length ? jb.map((j) => jobItem(j, "sup")).join("") : '<p class="empty">No completed jobs waiting.</p>'}</section><div class="cols2">
+    return `<div class="stack">${reqCard(supReqs(viewer))}<section class="card"><h2>Completed jobs</h2>${jb.length ? jb.map((j) => jobItem(j, "sup")).join("") : '<p class="empty">No completed jobs waiting.</p>'}</section><div class="cols2">
       <section class="card"><h2>Leave requests</h2>${lv.length ? lv.map((l) => leaveItem(l, "sup")).join("") : '<p class="empty">No requests waiting.</p>'}</section>
       <section class="card"><h2>Emergency duty</h2>${em.length ? em.map((e) => emItem(e, "sup")).join("") : '<p class="empty">No entries waiting.</p>'}</section></div></div>`;
   }
@@ -648,6 +648,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
           <div data-roster="${esc(r.key)}">${editorHTML(r, "e")}</div>
           ${errs.length ? `<div class="errs"><ul>${errs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
           <div class="row"><button class="btn go" data-act="approveRoster" data-key="${esc(r.key)}" ${errs.length ? "disabled" : ""}>Approve and publish</button></div></div>`; }).join("") : '<p class="empty">No rosters waiting. Supervisors submit next-day rosters before 18:00.</p>'}</section>
+      ${reqCard(engReqs())}
       <section class="card"><h2>Completed jobs</h2>${jb.map((j) => jobItem(j, "eng")).join("") || '<p class="empty">No completed jobs waiting.</p>'}</section>
       <div class="cols2">
         <section class="card"><h2>Leave requests</h2>${lv.length ? lv.map((l) => leaveItem(l, "eng")).join("") : '<p class="empty">Nothing waiting.</p>'}</section>
@@ -784,18 +785,45 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   function engLogs() { return `<section class="card"><h2>Activity log</h2><p class="small muted">Wrong-location attempts, phone and login history, approvals.</p>${S.logs.map(logRow).join("") || '<p class="empty">No entries.</p>'}</section>`; }
 
   /* ================= jobs & messages ================= */
-  const JST = { open: ["blue", "Open"], pending_sup: ["amber", "With supervisor"], pending_eng: ["amber", "With engineer"], closed: ["green", "Closed"] };
+  const JST = { open: ["blue", "Open"], pending_sup: ["amber", "With supervisor"], pending_eng: ["amber", "With engineer"], closed: ["green", "Closed"], requested: ["amber", "Request waiting"], rejected: ["red", "Not accepted"] };
   function jobItem(j, mode) {
     const st = JST[j.status] || ["", j.status]; const late = j.status === "open" && j.due && j.due < TODAY();
     let act = "";
     if (mode === "tech" && j.status === "open") act = `<div class="form-inline"><input placeholder="What was done (required)" data-jnote="${j.id}" aria-label="Completion note"><button class="btn sm go" data-act="jobDone" data-id="${j.id}">Mark complete</button></div>`;
     if (mode === "sup" || mode === "eng") act = decideBtns("job", j.id, mode);
     if (mode === "view" && j.status === "open" && (j.by === viewer || me().role === "engineer")) act = `<div><button class="btn sm danger" data-act="jobCancel" data-id="${j.id}">Cancel job</button></div>`;
-    return `<div class="item"><div class="row between"><span><span class="mono muted">${esc(j.no)}</span> · <b>${esc(site(j.site)?.name)}</b> <span class="small muted">${esc(site(j.site)?.area)}</span></span><span class="row">${late ? '<span class="pill red">Overdue</span>' : ""}<span class="pill ${st[0]}">${st[1]}</span></span></div>
+    if (j.status === "requested" && j.by === viewer && mode !== "req") act = `<div><button class="btn sm danger" data-act="jobCancel" data-id="${j.id}">Withdraw request</button></div>`;
+    if (mode === "req") act = reqBtns(j);
+    const isReq = (j.history || [])[0]?.text === "Requested";
+    const where = j.site ? `<b>${esc(site(j.site)?.name)}</b> <span class="small muted">${esc(site(j.site)?.area)}</span>` : `<b>General job</b> <span class="small muted">No site</span>`;
+    const who = j.status === "requested" || j.status === "rejected" ? `Requested by ${esc(nm(j.by))}` : isReq ? `To ${esc(nm(j.assignee))} · requested by ${esc(nm(j.by))}` : `To ${esc(nm(j.assignee))} · from ${esc(nm(j.by))}`;
+    return `<div class="item"><div class="row between"><span><span class="mono muted">${esc(j.no)}</span> · ${where}</span><span class="row">${late ? '<span class="pill red">Overdue</span>' : ""}<span class="pill ${st[0]}">${st[1]}</span></span></div>
       <div>${esc(j.desc)}</div>
-      <div class="small muted">To ${esc(nm(j.assignee))} · from ${esc(nm(j.by))}${j.due ? " · due " + fmtD(j.due) : ""}</div>
+      <div class="small muted">${who} · ${dt(j.created)}${j.due ? " · due " + fmtD(j.due) : ""}</div>
       ${j.note ? `<div class="small"><b>Done:</b> ${esc(j.note)}</div>` : ""}
-      ${j.returnComment && j.status === "open" ? `<div class="errs">Returned: ${esc(j.returnComment)}</div>` : ""}${act}</div>`;
+      ${j.returnComment && j.status === "open" ? `<div class="errs">Returned: ${esc(j.returnComment)}</div>` : ""}${j.status === "rejected" ? `<div class="errs">Not accepted: ${esc(j.returnComment)}</div>` : ""}${act}</div>`;
+  }
+  /* job requests */
+  const engReqs = () => S.jobs.filter((j) => j.status === "requested");
+  const supReqs = (sid) => { const mine = techs(sid).map((t) => t.id); return S.jobs.filter((j) => j.status === "requested" && mine.includes(j.by)); };
+  function reqCard(list) {
+    return `<section class="card${list.length ? " hl" : ""}"><h2>Job requests${list.length ? " (" + list.length + ")" : ""}</h2>${list.length ? list.map((j) => jobItem(j, "req")).join("") : '<p class="empty">No job requests waiting.</p>'}</section>`;
+  }
+  function reqBtns(j) {
+    const isEng = me().role === "engineer"; const r = S.users.find((u) => u.id === j.by);
+    const people = isEng ? [...sups(), ...techs()] : techs(viewer);
+    const opts = people.map((p) => `<option value="${p.id}" ${p.id === j.by ? "selected" : ""}>${esc(p.name)}${p.id === j.by ? " (requester)" : ""}</option>`).join("");
+    return `<div class="form-inline"><label class="field"><span>Give to</span><select data-rqwho="${j.id}">${opts}</select></label><input placeholder="Comment (needed to decline)" data-cmt="${j.id}" aria-label="Comment"><button class="btn sm go" data-act="reqOk" data-id="${j.id}">Accept</button><button class="btn sm danger" data-act="reqNo" data-id="${j.id}">Decline</button></div>`;
+  }
+  function siteOpts(slots) {
+    return `<option value="">General job – no site</option>` + slots.filter((s) => s.sites.length && s.shift !== "Night").map((s) => `<optgroup label="${esc(s.tag || s.name)}">${s.sites.map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>`).join("");
+  }
+  function reqForm(toWhom) {
+    return `<form class="card" id="fJobReq"><h2>Request a job</h2><p class="small muted">Raise a job you found or need to do. It goes to ${toWhom} to accept. Site is optional.</p>
+      <label class="field"><span>Site (optional)</span><select id="rqSite">${siteOpts(S.slots)}</select></label>
+      <label class="field"><span>Job description</span><textarea id="rqDesc" required placeholder="e.g. Pressure gauge PG-02 faulty at decanting panel, needs replacement"></textarea></label>
+      <label class="field"><span>Needed by (optional)</span><input type="date" id="rqDue" min="${TODAY()}"></label>
+      <button class="btn primary">Send request</button></form>`;
   }
   function openJobsCard() {
     const mine = S.jobs.filter((j) => j.assignee === viewer && j.status === "open");
@@ -804,23 +832,28 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   }
   function techJobs() {
     const mine = S.jobs.filter((j) => j.assignee === viewer).sort((a, b) => (a.status === "open" ? 0 : 1) - (b.status === "open" ? 0 : 1) || b.created.localeCompare(a.created));
-    return `<div class="stack narrow"><section class="card"><h2>My jobs</h2><p class="small muted">When you mark a job complete it goes to your supervisor, then to the Engineer.</p>${mine.length ? mine.map((j) => jobItem(j, "tech")).join("") : '<p class="empty">No jobs assigned.</p>'}</section></div>`;
+    const reqs = S.jobs.filter((j) => j.by === viewer && (j.status === "requested" || j.status === "rejected")).sort((a, b) => b.created.localeCompare(a.created)).slice(0, 10);
+    const jobs = mine.filter((j) => j.status !== "requested" && j.status !== "rejected");
+    return `<div class="stack narrow"><section class="card"><h2>My jobs</h2><p class="small muted">When you mark a job complete it goes to your supervisor, then to the Engineer.</p>${jobs.length ? jobs.map((j) => jobItem(j, "tech")).join("") : '<p class="empty">No jobs assigned.</p>'}</section>
+      ${reqForm("your supervisor")}
+      ${reqs.length ? `<section class="card"><h2>My requests</h2>${reqs.map((j) => jobItem(j, "tech")).join("")}</section>` : ""}</div>`;
   }
   function jobsAdmin() {
     const isEng = me().role === "engineer";
     const people = isEng ? [...sups(), ...techs()] : techs(viewer);
     const ids = people.map((p) => p.id);
     let list = S.jobs.filter((j) => isEng || j.by === viewer || ids.includes(j.assignee)).sort((a, b) => b.created.localeCompare(a.created));
-    if (ui.jobFilter === "active") list = list.filter((j) => j.status !== "closed"); else if (ui.jobFilter === "closed") list = list.filter((j) => j.status === "closed");
+    if (ui.jobFilter === "active") list = list.filter((j) => j.status !== "closed" && j.status !== "rejected"); else if (ui.jobFilter === "closed") list = list.filter((j) => j.status === "closed");
     const grp = (label, arr) => arr.length ? `<optgroup label="${label}">${arr.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</optgroup>` : "";
     const slotsForSites = isEng ? S.slots : supSlots(viewer);
     return `<div class="cols2"><form class="card" id="fJob"><h2>Assign a job</h2>
         <label class="field"><span>Assign to</span><select id="jbWho" required><option value="">Select person</option>${isEng ? grp("Supervisors", sups()) : ""}${grp("Technicians", isEng ? techs() : techs(viewer))}</select></label>
-        <label class="field"><span>Site</span><select id="jbSite" required><option value="">Select site</option>${slotsForSites.filter((s) => s.sites.length && s.shift !== "Night").map((s) => `<optgroup label="${esc(s.tag || s.name)}">${s.sites.map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+        <label class="field"><span>Site (optional)</span><select id="jbSite">${siteOpts(slotsForSites)}</select></label>
         <label class="field"><span>Job description</span><textarea id="jbDesc" required placeholder="e.g. Replace breakaway coupling on Line 1 and leak test"></textarea></label>
         <label class="field"><span>Due date (optional)</span><input type="date" id="jbDue" min="${TODAY()}"></label>
         <button class="btn primary">Assign job</button>
-        <p class="small muted">Flow: assigned → completed → supervisor approves → Engineer closes.</p></form>
+        <p class="small muted">Flow: assigned → completed → supervisor approves → Engineer closes. Choose "General job" for work not tied to one site.</p></form>`
+      + (isEng ? "" : reqForm("the Engineer")) + `
       <section class="card"><div class="row between"><h2>Jobs</h2><select id="jobFilter" aria-label="Filter"><option value="active" ${ui.jobFilter === "active" ? "selected" : ""}>Active</option><option value="closed" ${ui.jobFilter === "closed" ? "selected" : ""}>Closed</option><option value="all" ${ui.jobFilter === "all" ? "selected" : ""}>All</option></select></div>
         ${list.length ? list.map((j) => jobItem(j, "view")).join("") : '<p class="empty">No jobs.</p>'}</section></div>`;
   }
@@ -862,6 +895,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (ui.chatOld) { const t = S.threads.find((x) => x.id === ui.chatOld); if (!t) ui.chatOld = null; }
     if (!ui.chatOpen && !ui.chatOld && window.matchMedia("(min-width: 761px)").matches) ui.chatOpen = "group";
     const room = ui.chatOpen; const opened = !!(room || ui.chatOld);
+    if (room && roomUnread(room)) setTimeout(() => { markRoomRead(room); renderTabs(); renderBell(); const l = $("#crooms"); if (l) l.innerHTML = chatListHTML(); }, 0);
     let conv;
     if (ui.chatOld) {
       const t = S.threads.find((x) => x.id === ui.chatOld);
@@ -1280,6 +1314,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "wkDel": api("delWork", { id }); return;
       case "jobDone": { const n = (document.querySelector(`[data-jnote="${id}"]`)?.value || "").trim(); if (!n) { toast("Write what was done", true); return; } api("jobComplete", { id, note: n }); return; }
       case "jobCancel": if (!arm()) return; api("jobCancel", { id }); return;
+      case "reqOk": api("jobReview", { id, ok: true, assignee: document.querySelector(`[data-rqwho="${id}"]`)?.value || "", comment: cmt() }); return;
+      case "reqNo": { const c = cmt(); if (!c) { toast("Add a comment to decline", true); return; } api("jobReview", { id, ok: false, comment: c }); return; }
       case "chatBack": ui.chatOpen = null; ui.chatOld = null; render(); return;
       case "chatNew": ui.chatPick = !ui.chatPick; render(); $("#chatPickWho")?.focus(); return;
       case "chatPickGo": { const v = $("#chatPickWho").value; if (!v) { toast("Choose a person", true); return; } openRoom(privRoom(viewer, v)); return; }
@@ -1316,6 +1352,9 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       if (!ui.leaveDates.length) return;
       const r = await api("leave", { dates: ui.leaveDates, reason: $("#lvReason").value.trim() });
       if (r && r.ok) { ui.leaveDates = []; render(); }
+    } else if (f.id === "fJobReq") {
+      const r = await api("jobRequest", { site: $("#rqSite").value, desc: $("#rqDesc").value.trim(), due: $("#rqDue").value });
+      if (r && r.ok) f.reset();
     } else if (f.id === "fJob") {
       api("jobCreate", { assignee: $("#jbWho").value, site: $("#jbSite").value, desc: $("#jbDesc").value.trim(), due: $("#jbDue").value });
     } else if (f.id === "fChat") {
