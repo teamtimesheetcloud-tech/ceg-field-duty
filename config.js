@@ -1,5 +1,5 @@
 // CEG Field Duty – settings. Keep the same link you already had on the first line.
-self.CFD_API = "PASTE_YOUR_EXEC_LINK_HERE";
+self.CFD_API = "https://script.google.com/macros/s/AKfycbz8ud4OvNSHxRL6whT17pcl6Z9zaBqHaxZ2G6Ig2BXOuc5xkywX9ZKJCEUPgu94-WOUSw/exec";
 
 // Firebase (for phone notifications) – copy these from Firebase → Project settings → Your apps → Web app.
 self.CFD_FIREBASE = {
