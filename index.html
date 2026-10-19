@@ -1166,9 +1166,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     }
   }
   async function markVisited(siteId) {
-    let c = null;
-    try { c = await Promise.race([getPosition(), new Promise((_, no) => setTimeout(() => no(new Error("t")), 6000))]); } catch (e) {} // location is optional here
-    api("scan", c ? { site: siteId, lat: c.latitude, lng: c.longitude, accuracy: Math.round(c.accuracy || 0) } : { site: siteId });
+    api("scan", { site: siteId }); // "Visited" mode: no location asked
   }
   function getPosition() {
     return new Promise((resolve, reject) => {
