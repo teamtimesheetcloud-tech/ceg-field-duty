@@ -321,28 +321,37 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       throw new Error("Unexpected reply from the server. Please contact the Engineer.");
     }
   }
+  let reqSeq = 0, appliedSeq = 0, bgCount = 0;
+  function bgBusy(on) { bgCount += on ? 1 : -1; if (!busyCount) $("#busy").hidden = bgCount <= 0; }
   async function api(action, payload, opt) {
     opt = opt || {};
-    busy(true);
+    const bg = action === "refresh" && opt.silent; // background refresh: never block the screen
+    const seq = ++reqSeq;
+    bg ? bgBusy(true) : busy(true);
     try {
       const r = await call(action, { payload: payload || {} });
+      if (bg && appliedSeq > seq) return r; // a newer answer already arrived – ignore this older one
       if (!r.ok) {
         if (r.session) { logoutLocal(r.error); return null; }
         if (!opt.quietError) toast(r.error, true);
         return r;
       }
+      appliedSeq = Math.max(appliedSeq, seq);
       applyState(r.state);
       if (r.msg && !opt.silent) toast(r.msg);
       return r;
     } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
-    finally { busy(false); }
+    finally { bg ? bgBusy(false) : busy(false); }
   }
   let pendingLink = null;
   try { const h = decodeURIComponent((location.hash || "").slice(1)); if (h) pendingLink = h; } catch (e) {}
-  function applyState(st) {
-    S = st; viewer = st.me; lastSync = new Date();
+  let saveTimer = null;
+  function saveState() { clearTimeout(saveTimer); saveTimer = setTimeout(() => { try { localStorage.setItem("cfd.snap", JSON.stringify({ token, at: Date.now(), st: S })); } catch (e) { try { localStorage.removeItem("cfd.snap"); } catch (x) {} } }, 400); }
+  function loadSnap() { try { const o = JSON.parse(localStorage.getItem("cfd.snap") || "null"); if (o && o.token === token && o.st && Date.now() - o.at < 3 * 864e5) return o.st; } catch (e) {} return null; }
+  function applyState(st, fromSnap) {
+    S = st; viewer = st.me; if (!fromSnap) { lastSync = new Date(); saveState(); }
     if (pendingLink) { const l = pendingLink; pendingLink = null; try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {} goLink(l, true); }
-    render(); checkNewNotifs(); maybeInitPush();
+    render(); if (!fromSnap) checkNewNotifs(); maybeInitPush();
   }
 
   /* ================= login ================= */
@@ -350,7 +359,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     $("#appView").hidden = true; $("#loginView").hidden = false;
     if (msg) { $("#lgErr").textContent = msg; $("#lgErr").hidden = false; }
   }
-  function logoutLocal(msg) { token = ""; LS.del("cfd.token"); S = null; showLogin(msg); }
+  function logoutLocal(msg) { token = ""; LS.del("cfd.token"); try { localStorage.removeItem("cfd.snap"); } catch (e) {} S = null; showLogin(msg); }
   $("#fLogin").addEventListener("submit", async (e) => {
     e.preventDefault(); $("#lgErr").hidden = true;
     busy(true);
@@ -1235,7 +1244,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const roleLabel = { engineer: "Engineer", supervisor: "Supervisor", technician: "CNG Technician" }[u.role];
     $("#roleLine").textContent = "Cloud Energi Gas · " + roleLabel;
     $("#whoBox").innerHTML = `${esc(u.name)}<span>${roleLabel}</span>`;
-    $("#syncInfo").textContent = lastSync ? "Updated " + nowHM() : "";
+    $("#syncInfo").textContent = lastSync ? "Updated " + nowHM() : "Updating…";
     const views = {
       engineer: { overview: engOverview, approvals: engApprovals, jobs: jobsAdmin, messages: messagesView, board: boardView, team: engTeam, sites: engSites, qr: engQr, timesheets: engTimesheets, kpi: engKpi, logs: engLogs },
       supervisor: { today: techToday, prepare: supPrepare, jobs: jobsAdmin, approvals: supApprovals, messages: messagesView, board: boardView, team: () => `<div class="stack"><section class="card"><h2>My team</h2>${teamTable(techs(viewer))}</section><section class="card"><h2>KPI · ${parse(TODAY()).toLocaleDateString("en-GB", { month: "long" })}</h2>${supKpiHTML([u], TODAY().slice(0, 7), false)}<h3>My technicians</h3>${kpiTableHTML(techs(viewer), TODAY().slice(0, 7))}</section></div>` },
@@ -1412,7 +1421,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   if (!API || API.indexOf("http") !== 0) { showLogin("App is not configured yet: the API link in config.js is empty."); }
   else if (token) {
     $("#appView").hidden = false;
-    $("#main").innerHTML = '<p class="empty">Loading…</p>';
+    const snap = loadSnap();
+    if (snap) applyState(snap, true); else $("#main").innerHTML = '<p class="empty">Loading…</p>';
     api("refresh", {}, { silent: true, quietError: true }).then((r) => { if (!r || !r.ok) { if (!S) showLogin(r && r.error ? r.error : ""); } });
   } else showLogin("");
 })();
