@@ -661,12 +661,13 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const people = S.users.filter((u) => u.role !== "engineer");
     return `<div class="stack">
       <section class="card"><h2>People</h2>
-        <div class="tablewrap"><table><thead><tr><th>Name</th><th>Role</th><th>Supervisor</th><th>Mobile</th><th>PIN</th><th>Phone</th><th></th></tr></thead><tbody>
+        <div class="tablewrap"><table><thead><tr><th>Name</th><th>Role</th><th>Supervisor</th><th>Mobile</th><th>PIN</th><th>Phone</th><th>Alerts</th><th></th></tr></thead><tbody>
         ${[...S.users.filter((u) => u.role === "engineer"), ...people].map((t) => `<tr><td><b>${esc(t.name)}</b></td><td>${t.role === "technician" ? "Technician" : t.role === "supervisor" ? "Supervisor" : "Engineer"}</td>
           <td>${t.role === "technician" ? `<select data-usup="${t.id}" aria-label="Supervisor">${ss.map((s) => `<option value="${s.id}" ${s.id === t.sup ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select>` : ""}</td>
           <td><input class="mono" value="${esc(t.mobile)}" data-umobile="${t.id}" aria-label="Mobile" style="width:140px"></td>
           <td><span class="row" style="flex-wrap:nowrap;gap:6px">${t.pin ? '<span class="pill green">Set</span>' : '<span class="pill red">Not set</span>'}<input data-pinfor="${t.id}" inputmode="numeric" maxlength="4" placeholder="New" style="width:70px" aria-label="New PIN"><button class="btn sm" data-act="setPin" data-id="${t.id}">Set</button></span></td>
           <td>${devPill(t.device, t.devices)}</td>
+          <td>${(S.pushUsers || {})[t.id] ? '<span class="pill green">🔔 On</span>' : '<span class="pill red">Off</span>'}</td>
           <td><span class="row" style="flex-wrap:nowrap;gap:6px"><button class="btn sm" data-act="devReset" data-id="${t.id}">Reset phone</button>${t.role !== "engineer" ? `<button class="btn sm danger" data-act="deactivate" data-id="${t.id}">Remove</button>` : ""}</span></td></tr>`).join("")}
         </tbody></table></div>
         <form class="form-inline" id="fUser"><label class="field"><span>New person</span><input id="nuName" required placeholder="Full name"></label>
@@ -993,7 +994,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   const pushConfigured = () => !!(FB.apiKey && FB.projectId && FB.messagingSenderId && FB.appId && VAPID);
   const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
-  let fbMessaging = null, pushInitTried = false;
+  let fbMessaging = null, pushInitTried = false, swListen = false;
   function loadScript(src) { return new Promise((ok, no) => { if (document.querySelector(`script[src="${src}"]`)) return ok(); const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => no(new Error("Could not load " + src)); document.head.appendChild(s); }); }
   async function fbInit() {
     if (fbMessaging) return fbMessaging;
@@ -1002,10 +1003,14 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (!firebase.apps.length) firebase.initializeApp(FB);
     fbMessaging = firebase.messaging();
     fbMessaging.onMessage((payload) => { api("refresh", {}, { silent: true, quietError: true }); });
+    if (!swListen) { swListen = true; navigator.serviceWorker.addEventListener("message", (ev) => { const m = ev.data || {};
+      if (m.type === "cfd-push") api("refresh", {}, { silent: true, quietError: true });
+      if (m.type === "cfd-open" && m.link) api("refresh", {}, { silent: true, quietError: true }).then(() => goLink(m.link)); }); }
     return fbMessaging;
   }
   async function getPushToken() {
-    const reg = await navigator.serviceWorker.register("firebase-messaging-sw.js");
+    const reg = await navigator.serviceWorker.register("firebase-messaging-sw.js", { updateViaCache: "none" });
+    try { reg.update(); } catch (e) {}
     await navigator.serviceWorker.ready;
     const m = await fbInit();
     return m.getToken({ vapidKey: VAPID, serviceWorkerRegistration: reg });
@@ -1213,7 +1218,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       <form class="stack" id="fPin" style="gap:10px"><h3>Change PIN</h3><div class="grid2"><label class="field"><span>Current PIN</span><input type="password" id="opin" inputmode="numeric" maxlength="4" required></label><label class="field"><span>New PIN</span><input type="password" id="npin" inputmode="numeric" maxlength="4" required></label></div><button class="btn primary">Change PIN</button></form>
       <div class="stack" style="gap:8px"><h3>Notifications on this phone</h3>
         <p class="small muted">${!pushConfigured() ? "Not set up yet (Firebase settings missing)." : LS.get("cfd.pushToken") && ("Notification" in window) && Notification.permission === "granted" ? "On ✓" : "Off"}</p>
-        <div class="row">${pushConfigured() ? (LS.get("cfd.pushToken") ? '<button class="btn" data-act="pushOff">Turn off</button>' : '<button class="btn go" data-act="pushOn">Turn on</button>') : ""}${u.role === "engineer" ? '<button class="btn" data-act="pushTest">Send test notification</button>' : ""}</div>
+        <div class="row">${pushConfigured() ? (LS.get("cfd.pushToken") ? '<button class="btn" data-act="pushOff">Turn off</button>' : '<button class="btn go" data-act="pushOn">Turn on</button>') : ""}${pushConfigured() && LS.get("cfd.pushToken") ? '<button class="btn" data-act="pushTest">Send test notification</button>' : ""}</div>
+        ${pushConfigured() && LS.get("cfd.pushToken") ? '<p class="small muted">After tapping test, close the app and lock your phone. The notification arrives in about 20 seconds.</p>' : ""}
         ${u.role === "engineer" ? `<p class="small muted">Server: ${S.pushReady ? "Firebase key installed ✓" : "Firebase key not installed yet"}</p>` : ""}</div>
       <button class="btn danger" data-act="logout">Log out</button>`;
     $("#dAcct").showModal();
@@ -1323,7 +1329,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "pushOn": $("#dAcct").open && $("#dAcct").close(); enablePush(); return;
       case "pushOff": $("#dAcct").close(); disablePush(); return;
       case "pushHide": LS.set("cfd.pushHide", "1"); render(); return;
-      case "pushTest": $("#dAcct").close(); api("testPush", {}); return;
+      case "pushTest": $("#dAcct").close(); toast("Test coming in about 20 seconds. Close the app and lock your phone now."); call("testPush", { payload: { delay: 20 } }).then((r) => { if (r && r.msg && !/^Test sent/.test(r.msg)) toast(r.msg, true); }).catch(() => {}); return;
       case "openThread": { ui.openThread = ui.openThread === id ? null : id; const t = S.threads.find((x) => x.id === id); if (ui.openThread && t && t.unread.includes(viewer)) api("msgRead", { id }, { silent: true }); else render(); return; }
       case "emEdit": ui.emEdit = id; render(); return;
       case "emCancel": ui.emEdit = null; render(); return;
