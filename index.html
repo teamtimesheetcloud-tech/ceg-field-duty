@@ -333,7 +333,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       if (bg && appliedSeq > seq) return r; // a newer answer already arrived – ignore this older one
       if (!r.ok) {
         if (r.session) { logoutLocal(r.error); return null; }
-        if (!opt.quietError) toast(r.error, true);
+        if (!opt.quietError) toast(serverOld() ? r.error + " (Server code is not updated – ask the Engineer to deploy the new version.)" : r.error, true);
         return r;
       }
       appliedSeq = Math.max(appliedSeq, seq);
@@ -343,6 +343,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
     finally { bg ? bgBusy(false) : busy(false); }
   }
+  const NEED_SERVER = "2026-10-19c";
+  const serverOld = () => S && (!S.serverVersion || S.serverVersion < NEED_SERVER);
   const QR = () => S && S.visitMode === "qr"; // false = simple "Visited" tap (no QR yet)
   let pendingLink = null;
   try { const h = decodeURIComponent((location.hash || "").slice(1)); if (h) pendingLink = h; } catch (e) {}
@@ -412,6 +414,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     return assignmentFor(id, date);
   }
   const slotOf = (d) => !d ? null : String(d.slot).startsWith("sup:") ? myAssignment(d.slot.slice(4), d.date).slot : slot(d.slot);
+  const drove = (d) => !!(d && (d.driver || d.drovePrev)); // drove at least one car that day
   function dutyOf(id, date) { return S.duties.find((x) => x.tech === id && x.date === date); }
   function openDutyOf(id) { const t = TODAY(), y = addDays(t, -1); return dutyOf(id, t) || S.duties.find((d) => d.tech === id && d.date === y && d.start && !d.end) || null; }
   function dayCalc(tech, date) {
@@ -419,7 +422,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const dutyH = d && d.end && d.start ? hoursBetween(d.start, d.end) : 0;
     const emH = S.emergencies.filter((e) => e.tech === tech && e.status === "approved" && e.start.slice(0, 10) === date).reduce((s, e) => s + (new Date(e.end) - new Date(e.start)) / 36e5, 0);
     const ot = Math.max(0, dutyH - 9) + emH;
-    const km = d && d.driver && d.kmEnd != null && d.kmStart != null ? d.kmEnd - d.kmStart : 0;
+    const km = (d && d.driver && d.kmEnd != null && d.kmStart != null ? d.kmEnd - d.kmStart : 0) + (d && d.kmPrev || 0);
     const sl = slotOf(d); const supDuty = d && String(d.slot).startsWith("sup:");
     const covN = d && sl ? (supDuty ? new Set(d.visits.map((v) => v.site)).size : new Set(d.visits.map((v) => v.site).filter((x) => sl.sites.includes(x))).size) : 0;
     return { d, dutyH, emH, ot, km, covN, covT: sl && !supDuty ? sl.sites.length : 0 };
@@ -431,7 +434,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const km = ds.reduce((a, d) => a + dayCalc(tech, d.date).km, 0);
     const jm = S.jobs.filter((j) => j.assignee === tech && j.created.slice(0, 7) === month && j.status !== "requested" && j.status !== "rejected");
     const jobsDone = jm.filter((j) => j.status !== "open").length;
-    return { jobsTotal: jm.length, jobsDone, jobRate: jm.length ? jobsDone / jm.length : null, days: ds.length, coverage, km, drivingDays: ds.filter((d) => d.driver).length, workEntries: ds.reduce((a, d) => a + (d.work || []).length, 0), ot: ds.reduce((a, d) => a + dayCalc(tech, d.date).ot, 0), wrong: S.logs.filter((l) => l.type === "location" && l.tech === tech && l.at.slice(0, 7) === month).length };
+    return { jobsTotal: jm.length, jobsDone, jobRate: jm.length ? jobsDone / jm.length : null, days: ds.length, coverage, km, drivingDays: ds.filter((d) => drove(d)).length, workEntries: ds.reduce((a, d) => a + (d.work || []).length, 0), ot: ds.reduce((a, d) => a + dayCalc(tech, d.date).ot, 0), wrong: S.logs.filter((l) => l.type === "location" && l.tech === tech && l.at.slice(0, 7) === month).length };
   }
   function teamKpi(list, month) {
     const local = Math.max(0, ...techs().map((t) => kpi(t.id, month).km));
@@ -481,7 +484,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     technician: [["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Chat"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
   };
   let tab = null;
-  const ui = { chatOpen: null, chatMode: "group", chatTo: "", chatPick: false, chatOld: null, boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
+  const ui = { carSwap: false, chatOpen: null, chatMode: "group", chatTo: "", chatPick: false, chatOld: null, boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
   function renderTabs() {
     const u = me();
     const cnt = { approvals: pendingFor(u.role, u.id), messages: chatUnreadTotal(), jobs: u.role === "technician" ? S.jobs.filter((j) => j.assignee === u.id && j.status === "open").length : 0 };
@@ -629,7 +632,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const pendR = Object.values(S.rosters).filter((r) => r.status === "submitted").length;
     const loc = S.logs.filter((l) => l.type === "location" && l.at.slice(0, 10) >= addDays(TODAY(), -7)).length;
     const onDutyNow = S.duties.filter((d) => (d.date === TODAY() || (d.date === addDays(TODAY(), -1) && !d.end)) && d.start && !d.end).length;
-    return `<div class="stack">${pushCard()}
+    return `<div class="stack">${serverOld() ? `<div class="errs"><b>Server code is out of date.</b> Open Apps Script → paste the latest Code.gs → Save → Deploy → Manage deployments → ✏ Edit → Version: <b>New version</b> → Deploy. (Server: ${esc(S.serverVersion || "old")}, app needs ${NEED_SERVER}.)</div>` : ""}${pushCard()}
       <div class="tiles"><div class="tile"><b>${pendingFor("engineer")}</b><span>Waiting your approval</span></div>
         <div class="tile"><b>${onDutyNow}</b><span>On duty now</span></div>
         <div class="tile${loc ? " alert" : ""}"><b>${loc}</b><span>Wrong-location alerts (7 days)</span></div>
@@ -735,7 +738,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       tH += c.dutyH; tE += c.emH; tO += c.ot; tS += c.d ? c.covN : 0; tK += c.km;
       const wd = c.d ? (c.d.work || []).map((w) => `${site(w.site)?.name}: ${w.desc}`).join("; ") : "";
       const sl = slotOf(c.d);
-      rows.push(`<tr class="${c.d ? "" : "off"}"><td class="mono">${fmtD(date, { day: "2-digit", month: "short" })}</td><td>${parse(date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td>${status}</td><td>${sl ? sl.shift : ""}</td><td>${sl ? esc(sl.tag || sl.name) + (sl.zone ? " · " + esc(zone(sl.zone)?.name) : "") : ""}</td><td class="num">${c.d?.start || ""}</td><td class="num">${c.d?.end || (c.d ? "open" : "")}</td><td class="num">${c.dutyH ? fmtH(c.dutyH) : ""}</td><td class="num">${c.emH ? fmtH(c.emH) : ""}</td><td class="num">${c.ot ? fmtH(c.ot) : ""}</td><td>${c.d ? (!c.d.driver ? '<span class="pill">Passenger</span>' : '<span class="pill blue">Driver</span>') : ""}</td><td class="num">${c.d && c.d.driver ? (c.d.end ? c.km : "open") : ""}</td><td class="num">${c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : ""}</td><td class="wd">${esc(wd)}</td></tr>`);
+      rows.push(`<tr class="${c.d ? "" : "off"}"><td class="mono">${fmtD(date, { day: "2-digit", month: "short" })}</td><td>${parse(date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td>${status}</td><td>${sl ? sl.shift : ""}</td><td>${sl ? esc(sl.tag || sl.name) + (sl.zone ? " · " + esc(zone(sl.zone)?.name) : "") : ""}</td><td class="num">${c.d?.start || ""}</td><td class="num">${c.d?.end || (c.d ? "open" : "")}</td><td class="num">${c.dutyH ? fmtH(c.dutyH) : ""}</td><td class="num">${c.emH ? fmtH(c.emH) : ""}</td><td class="num">${c.ot ? fmtH(c.ot) : ""}</td><td>${c.d ? (!drove(c.d) ? '<span class="pill">Passenger</span>' : '<span class="pill blue">Driver</span>') : ""}</td><td class="num">${c.d && drove(c.d) ? (c.d.end ? c.km : "open") : ""}</td><td class="num">${c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : ""}</td><td class="wd">${esc(wd)}</td></tr>`);
     }
     return `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th>Status</th><th>Shift</th><th>Area · Zone</th><th class="num">Start</th><th class="num">Finish</th><th class="num">Hours</th><th class="num">Emerg.</th><th class="num">OT</th><th>Car</th><th class="num">Km</th><th class="num">Sites</th><th>Work done</th></tr></thead>
       <tbody>${rows.reverse().join("")}</tbody><tfoot><tr><td colspan="3">${on} duty day(s)</td><td colspan="4"></td><td class="num">${fmtH(tH)}</td><td class="num">${fmtH(tE)}</td><td class="num">${fmtH(tO)}</td><td></td><td class="num">${tK}</td><td class="num">${tS}</td><td></td></tr></tfoot></table></div>
@@ -1089,12 +1092,25 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const sitesHTML = sl.sites.map((sid) => { const x = site(sid); const v = d.visits.find((q) => q.site === sid);
       return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ ${v.time}${v.gps && v.gps !== "verified" && QR() ? '<br><span class="small muted">GPS not set</span>' : ""}</span>` : d.end ? '<span class="muted small">Not visited</span>' : `<button class="btn sm primary" data-act="scan" data-id="${sid}">${QR() ? "Scan QR" : "✓ Visited"}</button>`}</div>`; }).join("");
     const c = dayCalc(viewer, d.date);
-    const end = d.end ? `<div class="card"><h2>Duty closed</h2><div class="kv"><div><span class="label">Hours</span><b class="mono">${fmtH(c.dutyH)} h</b></div><div><span class="label">Overtime</span><b class="mono">${fmtH(c.ot)} h</b></div><div><span class="label">Km driven</span><b class="mono">${!d.driver ? "Passenger" : c.km}</b></div><div><span class="label">Sites</span><b class="mono">${c.covN}/${c.covT}</b></div></div></div>`
-      : `<form class="card" id="fEnd"><h2>End duty</h2><div class="grid2"><label class="field"><span>Closing time</span><input type="time" id="deEnd" value="${nowHM()}" required></label>${!d.driver ? `<div class="field"><span>Car</span><p class="small muted">Passenger${d.coDriver ? " with " + esc(nm(d.coDriver)) : ""}. No km needed.</p></div>` : `<label class="field"><span>Closing km</span><input type="number" id="deKm" min="${d.kmStart + 1}" required placeholder="&gt; ${d.kmStart}"></label>`}</div><p class="small muted" id="deCalc"></p><button class="btn primary block">End duty</button></form>`;
+    const end = d.end ? `<div class="card"><h2>Duty closed</h2><div class="kv"><div><span class="label">Hours</span><b class="mono">${fmtH(c.dutyH)} h</b></div><div><span class="label">Overtime</span><b class="mono">${fmtH(c.ot)} h</b></div><div><span class="label">Km driven</span><b class="mono">${!drove(d) ? "Passenger" : c.km}</b></div><div><span class="label">Sites</span><b class="mono">${c.covN}/${c.covT}</b></div></div></div>`
+      : `<form class="card" id="fEnd"><h2>End duty</h2><div class="grid2"><label class="field"><span>Closing time</span><input type="time" id="deEnd" value="${nowHM()}" required></label>${!d.driver ? `<div class="field"><span>Car</span><p class="small muted">Passenger${d.coDriver ? " with " + esc(nm(d.coDriver)) : ""}. No km needed.</p></div>` : `<label class="field"><span>Closing km · car ${esc(d.vehicle)}</span><input type="number" id="deKm" min="${d.kmStart + 1}" required placeholder="&gt; ${d.kmStart}"></label>`}</div><p class="small muted" id="deCalc"></p><button class="btn primary block">End duty</button></form>`;
     return `<div class="stack narrow">${hero}
       <div class="card"><div class="kv"><div><span class="label">Started</span><b class="mono">${d.start}</b></div><div><span class="label">Vehicle</span><b class="mono">${esc(d.vehicle)}</b></div><div><span class="label">${!d.driver ? "Car" : "Opening km"}</span><b class="mono">${!d.driver ? "Passenger" : d.kmStart}</b></div><div><span class="label">Visited</span><b class="mono">${c.covN}/${sl.sites.length}</b></div></div></div>
       <div class="card"><h2>Site check-in</h2><p class="small muted">${QR() ? `Scan the QR code fixed at the site. Your location must be within ${S.radius} m of the site.` : "When you reach a site, tap ✓ Visited (tap twice to confirm). The time is recorded."}</p><div>${sitesHTML}</div></div>
+      ${d.end ? "" : carSwapCard(d)}
       ${workCard(d, sl, false)}${end}</div>`;
+  }
+  function carSwapCard(d) {
+    const info = d.cars > 1 ? `<p class="small muted">Car ${d.cars} today${d.kmPrev ? " · " + d.kmPrev + " km on earlier car(s)" : ""}.</p>` : "";
+    if (!ui.carSwap) return `<div class="card"><div class="row between"><span><b>Car</b> <span class="mono">${esc(d.vehicle)}</span> · ${d.driver ? "Driving from " + d.kmStart + " km" : "Passenger"}</span><button class="btn sm" data-act="carSwapOpen">Change car</button></div>${info}</div>`;
+    return `<form class="card" id="fCar"><h2>Change car</h2>${info}
+      <div class="grid2">${d.driver ? `<label class="field full"><span>Closing km of ${esc(d.vehicle)}</span><input type="number" id="csKmEnd" inputmode="numeric" min="${d.kmStart + 1}" required placeholder="&gt; ${d.kmStart}"></label>` : `<p class="small muted full">You were a passenger in ${esc(d.vehicle)}. No km needed.</p>`}
+        <label class="field full"><span>New vehicle no.</span><input id="csVeh" list="vehList2" inputmode="numeric" maxlength="5" placeholder="5 digits" required></label>
+        <div class="field full"><span>In the new car</span><div class="seg" role="radiogroup"><label><input type="radio" name="csCar" value="drive" checked> I am driving</label><label><input type="radio" name="csCar" value="pass"> Passenger</label></div></div>
+        <label class="field full" id="csKmWrap"><span>Opening km of new car</span><input type="number" id="csKm" inputmode="numeric" min="0" placeholder="Odometer reading"></label>
+        <label class="field full" id="csDrvWrap" hidden><span>Driver</span><select id="csDrv"><option value="">Select driver</option>${S.users.filter((t) => t.id !== viewer && t.role !== "engineer").map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select></label></div>
+      <datalist id="vehList2">${S.vehicles.map((v) => `<option value="${esc(v)}">`).join("")}</datalist>
+      <div class="row"><button class="btn primary">Save car change</button><button type="button" class="btn" data-act="carSwapClose">Cancel</button></div></form>`;
   }
   function workCard(d, sl, isSup) {
     const mineSites = sl.sites.map(site).filter(Boolean); const others = S.sites.filter((x) => !sl.sites.includes(x.id));
@@ -1145,7 +1161,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         <div class="kv"><div><span class="label">Duty days</span><b class="mono">${k.days}</b></div><div><span class="label">Driving days</span><b class="mono">${k.drivingDays}</b></div><div><span class="label">OT</span><b class="mono">${fmtH(k.ot)} h</b></div><div><span class="label">Wrong location</span><b class="mono">${k.wrong}</b></div></div>
         ${KPI_NOTE()}</div>
       <section class="card"><h2>Daily coverage</h2>${ds.length ? ds.map((d) => { const c = dayCalc(viewer, d.date); const sl = slotOf(d);
-        return `<div class="visit"><span><b>${fmtD(d.date)}</b> ${sl ? tagHTML(sl) : ""}<br><span class="small muted">${!d.driver ? "Passenger" : c.km + " km"} · ${(d.work || []).length} work entr${(d.work || []).length === 1 ? "y" : "ies"}</span></span><span class="row">${bar(c.covT ? c.covN / c.covT : 0)}<span class="mono">${c.covN}/${c.covT}</span></span></div>`; }).join("") : '<p class="empty">No closed duties this month.</p>'}</section></div>`;
+        return `<div class="visit"><span><b>${fmtD(d.date)}</b> ${sl ? tagHTML(sl) : ""}<br><span class="small muted">${!drove(d) ? "Passenger" : c.km + " km"} · ${(d.work || []).length} work entr${(d.work || []).length === 1 ? "y" : "ies"}</span></span><span class="row">${bar(c.covT ? c.covN / c.covT : 0)}<span class="mono">${c.covN}/${c.covT}</span></span></div>`; }).join("") : '<p class="empty">No closed duties this month.</p>'}</section></div>`;
   }
 
   /* ================= QR scan + GPS ================= */
@@ -1206,7 +1222,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         const date = month + "-" + pad(i); if (date > TODAY()) break;
         const a = assignmentFor(id, date); const c = dayCalc(id, date); const sl = slotOf(c.d);
         tH += c.dutyH; tE += c.emH; tO += c.ot; tK += c.km; tS += c.covN;
-        rows.push([date, parse(date).toLocaleDateString("en-GB", { weekday: "long" }), c.d ? "On Duty" : a?.type === "leave" ? "Leave" : a?.type === "off" ? "Off Duty" : c.emH ? "Emergency" : "", sl ? sl.shift : "", sl ? (sl.tag || sl.name) + (sl.zone ? " · " + (zone(sl.zone)?.name || "") : "") : "", c.d?.start || "", c.d?.end || "", c.dutyH ? r2(c.dutyH) : "", c.emH ? r2(c.emH) : "", c.ot ? r2(c.ot) : "", c.d ? (c.d.driver ? "Driver" : "Passenger") : "", c.d && c.d.driver && c.d.end ? c.km : "", c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : "", c.d ? (c.d.work || []).map((w) => (site(w.site)?.name || "") + ": " + w.desc).join("; ") : ""]);
+        rows.push([date, parse(date).toLocaleDateString("en-GB", { weekday: "long" }), c.d ? "On Duty" : a?.type === "leave" ? "Leave" : a?.type === "off" ? "Off Duty" : c.emH ? "Emergency" : "", sl ? sl.shift : "", sl ? (sl.tag || sl.name) + (sl.zone ? " · " + (zone(sl.zone)?.name || "") : "") : "", c.d?.start || "", c.d?.end || "", c.dutyH ? r2(c.dutyH) : "", c.emH ? r2(c.emH) : "", c.ot ? r2(c.ot) : "", c.d ? (drove(c.d) ? "Driver" : "Passenger") : "", c.d && drove(c.d) && c.d.end ? c.km : "", c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : "", c.d ? (c.d.work || []).map((w) => (site(w.site)?.name || "") + ": " + w.desc).join("; ") : ""]);
       }
       rows.push(["Total", "", "", "", "", "", "", r2(tH), r2(tE), r2(tO), "", tK, tS, ""]);
     }
@@ -1274,6 +1290,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (t.id === "chatTo") { ui.chatTo = t.value; return; }
     if (t.id === "jobFilter") { ui.jobFilter = t.value; render(); return; }
     if (t.id === "qrSlot") { ui.qrSlot = t.value; render(); return; }
+    if (t.name === "csCar") { const pass = t.value === "pass"; $("#csKmWrap").hidden = pass; $("#csDrvWrap").hidden = !pass; return; }
     if (t.name === "dsCar") { const pass = t.value === "pass"; $("#kmWrap").hidden = pass; $("#drvWrap").hidden = !pass; return; }
     if (t.id === "radius") { api("setting", { key: "radius", value: Math.max(20, +t.value || 200) }); return; }
     if (t.id === "visitMode") { api("setting", { key: "visitMode", value: t.value }); return; }
@@ -1292,7 +1309,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (e.target.id === "deEnd" || e.target.id === "deKm") {
       const d = openDutyOf(viewer); if (!d) return;
       const h = hoursBetween(d.start, $("#deEnd").value || nowHM()); const km = $("#deKm") ? +$("#deKm").value : 0;
-      $("#deCalc").textContent = `Duty ${fmtH(h)} h · OT ${fmtH(Math.max(0, h - 9))} h${km > d.kmStart ? " · " + (km - d.kmStart) + " km" : ""}`;
+      $("#deCalc").textContent = `Duty ${fmtH(h)} h · OT ${fmtH(Math.max(0, h - 9))} h${km > d.kmStart || d.kmPrev ? " · " + ((km > d.kmStart ? km - d.kmStart : 0) + (d.kmPrev || 0)) + " km today" : ""}`;
     }
   });
   document.addEventListener("click", async (e) => {
@@ -1334,6 +1351,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "supRemove": api("supRemoveSite", { site: id }); return;
       case "wkDel": api("delWork", { id }); return;
       case "jobDone": { const n = (document.querySelector(`[data-jnote="${id}"]`)?.value || "").trim(); if (!n) { toast("Write what was done", true); return; } api("jobComplete", { id, note: n }); return; }
+      case "carSwapOpen": ui.carSwap = true; render(); return;
+      case "carSwapClose": ui.carSwap = false; render(); return;
       case "jobCancel": if (!arm()) return; api("jobCancel", { id }); return;
       case "reqOk": api("jobReview", { id, ok: true, assignee: document.querySelector(`[data-rqwho="${id}"]`)?.value || "", comment: cmt() }); return;
       case "reqNo": { const c = cmt(); if (!c) { toast("Add a comment to decline", true); return; } api("jobReview", { id, ok: false, comment: c }); return; }
@@ -1360,6 +1379,12 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       if (!/^\d{5}$/.test(veh)) { toast("Vehicle number must be 5 digits.", true); return; }
       if (driver && $("#dsKm").value === "") { toast("Enter opening km.", true); return; }
       api("startDuty", { start: $("#dsStart").value, vehicle: veh, driver, coDriver: driver ? "" : $("#dsDrv").value, kmStart: driver ? +$("#dsKm").value : null });
+    } else if (f.id === "fCar") {
+      const veh = $("#csVeh").value.trim(); const driver = document.querySelector('input[name="csCar"]:checked').value === "drive";
+      if (!/^\d{5}$/.test(veh)) { toast("Vehicle number must be 5 digits.", true); return; }
+      if (driver && $("#csKm").value === "") { toast("Enter opening km of the new car.", true); return; }
+      const r = await api("carSwap", { kmEnd: $("#csKmEnd") ? +$("#csKmEnd").value : null, vehicle: veh, driver, coDriver: driver ? "" : $("#csDrv").value, kmStart: driver ? +$("#csKm").value : null });
+      if (r && r.ok) { ui.carSwap = false; render(); }
     } else if (f.id === "fEnd") {
       api("endDuty", { end: $("#deEnd").value, kmEnd: $("#deKm") ? +$("#deKm").value : null });
     } else if (f.id === "fWork") {
