@@ -343,6 +343,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
     finally { bg ? bgBusy(false) : busy(false); }
   }
+  const QR = () => S && S.visitMode === "qr"; // false = simple "Visited" tap (no QR yet)
   let pendingLink = null;
   try { const h = decodeURIComponent((location.hash || "").slice(1)); if (h) pendingLink = h; } catch (e) {}
   let saveTimer = null;
@@ -614,10 +615,10 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const plan = d ? (d.plan || []) : []; const visits = d ? d.visits : [];
     const groups = supSlots(viewer).filter((s) => s.sites.length && s.shift !== "Night").map((s) => { const opts = s.sites.filter((x) => !plan.includes(x)); return opts.length ? `<optgroup label="${esc(s.tag || s.name)}">${opts.map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>` : ""; }).join("");
     const list = plan.map((sid) => { const x = site(sid); const v = visits.find((q) => q.site === sid);
-      return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ Scanned ${v.time}</span>` : `<span class="row"><button class="btn sm primary" data-act="scan" data-id="${sid}">Scan QR</button><button class="btn sm" data-act="supRemove" data-id="${sid}" aria-label="Remove ${esc(x?.name)}">✕</button></span>`}</div>`; }).join("");
+      return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ ${QR() ? "Scanned" : "Visited"} ${v.time}</span>` : `<span class="row"><button class="btn sm primary" data-act="scan" data-id="${sid}">${QR() ? "Scan QR" : "✓ Visited"}</button><button class="btn sm" data-act="supRemove" data-id="${sid}" aria-label="Remove ${esc(x?.name)}">✕</button></span>`}</div>`; }).join("");
     return `<div class="stack narrow">${pushCard()}<div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>Site visits</h2><p class="sub">${visits.length} scanned · ${plan.length} added today · target ${S.supTarget}</p></div>
       ${openJobsCard()}
-      <form class="card" id="fSupAdd"><h2>Add a site</h2><p class="small muted">Add the site you are going to, then scan its QR code when you reach it. Location must be within ${S.radius} m.</p>
+      <form class="card" id="fSupAdd"><h2>Add a site</h2><p class="small muted">${QR() ? `Add the site you are going to, then scan its QR code when you reach it. Location must be within ${S.radius} m.` : "Add the site you are going to, then tap ✓ Visited when you reach it."}</p>
         <div class="form-inline"><label class="field"><span>Site</span><select id="supSite" required><option value="">Select site</option>${groups}</select></label><button class="btn primary">Add site</button></div></form>
       <section class="card"><h2>Today's sites</h2>${list || '<p class="empty">No sites added yet.</p>'}</section>
       ${workCard(d, { sites: supSites(viewer) }, true)}</div>`;
@@ -692,6 +693,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     return `<div class="stack">
       <section class="card"><div class="row between"><h2>Zones and duty slots</h2>
         <div class="row"><label class="field" style="flex:0 0 auto"><span>Check-in radius (m)</span><input type="number" id="radius" min="20" max="2000" step="10" value="${S.radius}" style="width:120px"></label>
+        <label class="field" style="flex:0 0 auto"><span>Site visit confirmation</span><select id="visitMode"><option value="check" ${!QR() ? "selected" : ""}>Tap “Visited” (no QR)</option><option value="qr" ${QR() ? "selected" : ""}>Scan QR + check location</option></select></label>
         <label class="row small" style="gap:6px"><input type="checkbox" id="allowNoGps" ${S.allowNoGps ? "checked" : ""}> Allow check-in at sites without GPS (pilot)</label></div></div>
         <div class="tablewrap"><table><thead><tr><th>Slot</th><th>Tag</th><th>Zone</th><th>Shift</th><th>Supervisor</th><th>Mandatory</th><th class="num">Sites</th></tr></thead><tbody>
         ${S.slots.map((s) => `<tr><td><input value="${esc(s.name)}" data-slotf="name|${s.id}" aria-label="Slot name"></td>
@@ -1085,13 +1087,13 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     }
     const sl = shownSlot;
     const sitesHTML = sl.sites.map((sid) => { const x = site(sid); const v = d.visits.find((q) => q.site === sid);
-      return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ ${v.time}${v.gps && v.gps !== "verified" ? '<br><span class="small muted">GPS not set</span>' : ""}</span>` : d.end ? '<span class="muted small">Not visited</span>' : `<button class="btn sm primary" data-act="scan" data-id="${sid}">Scan QR</button>`}</div>`; }).join("");
+      return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ ${v.time}${v.gps && v.gps !== "verified" && QR() ? '<br><span class="small muted">GPS not set</span>' : ""}</span>` : d.end ? '<span class="muted small">Not visited</span>' : `<button class="btn sm primary" data-act="scan" data-id="${sid}">${QR() ? "Scan QR" : "✓ Visited"}</button>`}</div>`; }).join("");
     const c = dayCalc(viewer, d.date);
     const end = d.end ? `<div class="card"><h2>Duty closed</h2><div class="kv"><div><span class="label">Hours</span><b class="mono">${fmtH(c.dutyH)} h</b></div><div><span class="label">Overtime</span><b class="mono">${fmtH(c.ot)} h</b></div><div><span class="label">Km driven</span><b class="mono">${!d.driver ? "Passenger" : c.km}</b></div><div><span class="label">Sites</span><b class="mono">${c.covN}/${c.covT}</b></div></div></div>`
       : `<form class="card" id="fEnd"><h2>End duty</h2><div class="grid2"><label class="field"><span>Closing time</span><input type="time" id="deEnd" value="${nowHM()}" required></label>${!d.driver ? `<div class="field"><span>Car</span><p class="small muted">Passenger${d.coDriver ? " with " + esc(nm(d.coDriver)) : ""}. No km needed.</p></div>` : `<label class="field"><span>Closing km</span><input type="number" id="deKm" min="${d.kmStart + 1}" required placeholder="&gt; ${d.kmStart}"></label>`}</div><p class="small muted" id="deCalc"></p><button class="btn primary block">End duty</button></form>`;
     return `<div class="stack narrow">${hero}
       <div class="card"><div class="kv"><div><span class="label">Started</span><b class="mono">${d.start}</b></div><div><span class="label">Vehicle</span><b class="mono">${esc(d.vehicle)}</b></div><div><span class="label">${!d.driver ? "Car" : "Opening km"}</span><b class="mono">${!d.driver ? "Passenger" : d.kmStart}</b></div><div><span class="label">Visited</span><b class="mono">${c.covN}/${sl.sites.length}</b></div></div></div>
-      <div class="card"><h2>Site check-in</h2><p class="small muted">Scan the QR code fixed at the site. Your location must be within ${S.radius} m of the site.</p><div>${sitesHTML}</div></div>
+      <div class="card"><h2>Site check-in</h2><p class="small muted">${QR() ? `Scan the QR code fixed at the site. Your location must be within ${S.radius} m of the site.` : "When you reach a site, tap ✓ Visited (tap twice to confirm). The time is recorded."}</p><div>${sitesHTML}</div></div>
       ${workCard(d, sl, false)}${end}</div>`;
   }
   function workCard(d, sl, isSup) {
@@ -1162,6 +1164,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     } catch (e) {
       scanMsg('<div class="errs">Camera not available. Allow camera access for this app in your phone settings, then try again.</div>');
     }
+  }
+  async function markVisited(siteId) {
+    let c = null;
+    try { c = await Promise.race([getPosition(), new Promise((_, no) => setTimeout(() => no(new Error("t")), 6000))]); } catch (e) {} // location is optional here
+    api("scan", c ? { site: siteId, lat: c.latitude, lng: c.longitude, accuracy: Math.round(c.accuracy || 0) } : { site: siteId });
   }
   function getPosition() {
     return new Promise((resolve, reject) => {
@@ -1271,6 +1278,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (t.id === "qrSlot") { ui.qrSlot = t.value; render(); return; }
     if (t.name === "dsCar") { const pass = t.value === "pass"; $("#kmWrap").hidden = pass; $("#drvWrap").hidden = !pass; return; }
     if (t.id === "radius") { api("setting", { key: "radius", value: Math.max(20, +t.value || 200) }); return; }
+    if (t.id === "visitMode") { api("setting", { key: "visitMode", value: t.value }); return; }
     if (t.id === "allowNoGps") { api("setting", { key: "allowNoGps", value: t.checked }); return; }
     if (t.closest("#supEditor") && ui.draft) { if (applyEditorEvent(e, ui.draft, "s")) render(); return; }
     const rk = t.closest("[data-roster]"); if (rk) { if (applyEditorEvent(e, ui.engEdit[rk.dataset.roster], "e")) render(); return; }
@@ -1322,7 +1330,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "print": drawQrs(); setTimeout(() => window.print(), 300); return;
       case "xlsOne": exportXls([ui.tsTech], ui.tsMonth); return;
       case "xlsAll": exportXls([...sups(), ...techs()].map((u) => u.id), ui.tsMonth); return;
-      case "scan": openScan(id); return;
+      case "scan": if (QR()) { openScan(id); return; } if (!arm()) return; markVisited(id); return;
       case "rescan": openScan(id); return;
       case "closeScan": $("#dScan").close(); return;
       case "supRemove": api("supRemoveSite", { site: id }); return;
