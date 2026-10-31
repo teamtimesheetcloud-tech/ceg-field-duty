@@ -344,7 +344,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   let deviceId = LS.get("cfd.device");
   if (!deviceId) { deviceId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2))); LS.set("cfd.device", deviceId); }
   let token = LS.get("cfd.token") || "";
-  const isMobile = (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") ? navigator.userAgentData.mobile : /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent));
+  // Phone check. Also catches phones with Chrome "Desktop site" switched on (they still have a touch screen and no mouse).
+  const mq = (q) => { try { return window.matchMedia(q).matches; } catch (e) { return false; } };
+  const isMobile = !!((navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod|Mobile|Windows Phone/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent))
+    || (navigator.maxTouchPoints > 0 && mq("(pointer: coarse)") && mq("(hover: none)")));
   let ip = "";
   (async () => { try { const c = new AbortController(); setTimeout(() => c.abort(), 4000); const r = await fetch("https://api.ipify.org?format=json", { signal: c.signal }); ip = (await r.json()).ip || ""; } catch (e) {} })();
 
