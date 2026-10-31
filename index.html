@@ -54,6 +54,43 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .acct .who span { color: #5A6B7F; display: block; }
 .acct button { border: 1px solid #C9D6E3; background: #fff; color: #10233A; border-radius: var(--r); padding: 6px 10px; font-weight: 600; cursor: pointer; }
 .tabsbar { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
+.navbar { display: flex; align-items: center; gap: 10px; min-height: 52px; }
+.menubtn, .homebtn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: var(--r); padding: 8px 12px; font-weight: 700; cursor: pointer; }
+.menubtn svg, .homebtn svg, .ico svg { width: 20px; height: 20px; }
+.menubtn .badge { margin-left: 0; }
+.navtitle { display: flex; align-items: center; gap: 8px; font-family: var(--f-display); font-weight: 700; color: var(--blue); font-size: 1.05rem; min-width: 0; flex: 1; }
+.navtitle span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.navtitle svg { width: 20px; height: 20px; flex: none; }
+.homebtn { padding: 8px 10px; }
+.homebtn[aria-current="page"] { border-color: var(--blue); color: var(--blue); }
+#drawer { position: fixed; inset: 0; z-index: 90; }
+#drawer .dback { position: absolute; inset: 0; background: rgba(16,35,58,.45); }
+#drawer .dpanel { position: absolute; top: 0; bottom: 0; left: 0; width: min(340px, 88vw); background: var(--surface); box-shadow: 0 0 30px rgba(0,0,0,.2); display: flex; flex-direction: column; animation: din .18s ease-out; }
+@keyframes din { from { transform: translateX(-24px); opacity: .4; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { #drawer .dpanel { animation: none; } }
+.dhead { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 3px solid var(--brand-green); }
+.dhead b { font-family: var(--f-display); color: var(--blue); font-size: 1.1rem; }
+.dhead button { border: 0; background: none; font-size: 1.4rem; line-height: 1; cursor: pointer; color: var(--muted); padding: 4px 8px; }
+.dlist { overflow-y: auto; padding: 6px 0 20px; }
+.dnote { font-size: .78rem; color: var(--muted); padding: 6px 16px 10px; }
+.mitem { display: flex; align-items: center; }
+.mitem .tab { flex: 1; display: flex; align-items: center; gap: 12px; text-align: left; padding: 12px 16px; border: 0; border-left: 4px solid transparent; background: none; font-weight: 600; color: var(--ink); cursor: pointer; }
+.mitem .tab[aria-selected="true"] { background: var(--blue-soft); border-left-color: var(--brand-green); color: var(--blue); }
+.mitem .tab svg { width: 20px; height: 20px; color: var(--blue); flex: none; }
+.pin { border: 0; background: none; cursor: pointer; padding: 10px 14px; color: #A9B6C4; }
+.pin svg { width: 20px; height: 20px; }
+.pin[aria-pressed="true"] { color: #E3A008; }
+.hometop { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 10px; }
+.tiles2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.tile2 { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 14px 14px; cursor: pointer; min-height: 118px; color: var(--ink); }
+.tile2:hover { border-color: var(--blue); }
+.tile2 .ic { width: 42px; height: 42px; border-radius: 11px; background: var(--blue-soft); color: var(--blue); display: grid; place-items: center; }
+.tile2 .ic svg { width: 22px; height: 22px; }
+.tile2 b { font-size: .98rem; }
+.tile2 small { color: var(--muted); font-size: .78rem; line-height: 1.3; }
+.tile2 .badge { position: absolute; top: 12px; right: 12px; margin: 0; }
+.tile2.add { border-style: dashed; align-items: center; justify-content: center; color: var(--blue); font-weight: 700; }
+.tile2 .unpin { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: #fff; color: var(--red); font-weight: 700; cursor: pointer; }
 .tabs { display: flex; gap: 2px; overflow-x: auto; }
 .tab { border: 0; background: none; padding: 12px 14px 9px; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; }
 .tab[aria-selected="true"] { color: var(--blue); border-bottom-color: var(--brand-green); }
@@ -262,7 +299,13 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       <div class="acct"><div class="who" id="whoBox"></div><button class="bell" id="bell" type="button" aria-label="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="cnt" id="bellCnt" hidden></span></button><button data-act="account">Account</button></div>
     </div>
   </header>
-  <div class="tabsbar"><div class="wrap"><nav class="tabs" id="tabs" role="tablist"></nav></div></div>
+  <div class="tabsbar"><div class="wrap navbar">
+    <button type="button" class="menubtn" id="menuBtn" aria-haspopup="true" aria-controls="drawer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Menu<span id="menuBadge"></span></button>
+    <div class="navtitle" id="navTitle"></div>
+    <button type="button" class="homebtn" id="homeBtn" aria-label="Home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg></button>
+  </div></div>
+  <div id="drawer" hidden><div class="dback" data-close="1"></div><aside class="dpanel" role="dialog" aria-label="Menu"><div class="dhead"><b>Menu</b><button type="button" data-close="1" aria-label="Close menu">✕</button></div>
+    <p class="dnote">Tap ☆ to add a section to your Home page.</p><nav class="dlist" id="tabs"></nav></aside></div>
   <main class="wrap" id="main"></main>
   <footer class="wrap foot noprint">Cloud Energi Gas LLC · CEG Field Duty · <span id="syncInfo"></span> <button class="btn sm" data-act="refresh">Refresh</button></footer>
 </div>
@@ -343,7 +386,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
     finally { bg ? bgBusy(false) : busy(false); }
   }
-  const NEED_SERVER = "2026-10-31b";
+  const NEED_SERVER = "2026-10-31c";
   const serverOld = () => S && (!S.serverVersion || S.serverVersion < NEED_SERVER);
   const QR = () => S && S.visitMode === "qr"; // false = simple "Visited" tap (no QR yet)
   let pendingLink = null;
@@ -513,18 +556,97 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
 
   /* ================= navigation ================= */
   const TABS = {
-    engineer: [["overview", "Overview"], ["approvals", "Approvals"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["board", "Roster board"], ["team", "Team"], ["sites", "Sites & slots"], ["qr", "QR codes"], ["timesheets", "Timesheets"], ["kpi", "KPI"], ["logs", "Logs"]],
-    supervisor: [["today", "Site visits"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["approvals", "Approvals"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["board", "Roster board"], ["team", "My team"]],
-    technician: [["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
+    engineer: [["home", "Home"], ["overview", "Overview"], ["approvals", "Approvals"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["library", "Library"], ["board", "Roster board"], ["team", "Team"], ["sites", "Sites & slots"], ["qr", "QR codes"], ["timesheets", "Timesheets"], ["kpi", "KPI"], ["logs", "Logs"]],
+    supervisor: [["home", "Home"], ["today", "Site visits"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["approvals", "Approvals"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["library", "Library"], ["board", "Roster board"], ["team", "My team"]],
+    technician: [["home", "Home"], ["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["library", "Library"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
   };
   let tab = null;
-  const ui = { siteEdit: null, siteQ: "", issueFilter: "active", issueOpen: null, carSwap: false, chatOpen: null, chatMode: "group", chatTo: "", chatPick: false, chatOld: null, boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
-  function renderTabs() {
+  const ui = { homeEdit: false, libQ: "", libCat: "", libAdd: false, siteEdit: null, siteQ: "", issueFilter: "active", issueOpen: null, carSwap: false, chatOpen: null, chatMode: "group", chatTo: "", chatPick: false, chatOld: null, boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
+  /* ================= menu + Home page ================= */
+  const IC = {
+    home: '<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
+    overview: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+    approvals: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
+    prepare: '<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M9 15l2 2 4-4"/>',
+    jobs: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M3 13h18"/>',
+    messages: '<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
+    issues: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    siteinfo: '<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/>',
+    library: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+    board: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>',
+    team: '<circle cx="9" cy="8" r="3.5"/><path d="M2 21c0-3.9 3.1-7 7-7s7 3.1 7 7"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M22 21c0-3-1.8-5.6-4.5-6.6"/>',
+    sites: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+    qr: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4"/>',
+    timesheets: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+    kpi: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+    logs: '<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+    today: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    emergency: '<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>',
+    leave: '<path d="M8 2v4M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M9 15h6"/>',
+    mysheet: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M8 13h8M8 17h5"/>',
+    mykpi: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>'
+  };
+  const icon = (k) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k] || IC.overview}</svg>`;
+  const STAR = (on) => `<svg viewBox="0 0 24 24" fill="${on ? "currentColor" : "none"}" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"/></svg>`;
+  const DEFAULT_PINS = { technician: ["today", "jobs", "issues", "messages", "mysheet", "mykpi"], supervisor: ["today", "approvals", "prepare", "jobs", "issues", "board"], engineer: ["overview", "approvals", "prepare", "jobs", "issues", "kpi"] };
+  function pins() { const u = me(); let p = null; try { p = JSON.parse(LS.get("cfd.pins." + u.id) || "null"); } catch (e) {} const ok = TABS[u.role].map((x) => x[0]); return (Array.isArray(p) ? p : DEFAULT_PINS[u.role]).filter((k) => k !== "home" && ok.includes(k)); }
+  function setPins(p) { LS.set("cfd.pins." + me().id, JSON.stringify(p)); }
+  function tabCounts() {
     const u = me();
-    const cnt = { approvals: pendingFor(u.role, u.id), messages: chatUnreadTotal(), jobs: u.role === "technician" ? S.jobs.filter((j) => j.assignee === u.id && j.status === "open").length : 0 };
-    $("#tabs").innerHTML = TABS[u.role].map(([k, l]) => `<button class="tab" role="tab" data-tab="${k}" aria-selected="${k === tab}">${l}${cnt[k] ? `<span class="badge">${cnt[k]}</span>` : ""}</button>`).join("");
+    return { approvals: pendingFor(u.role, u.id), messages: chatUnreadTotal(), jobs: u.role === "technician" ? S.jobs.filter((j) => j.assignee === u.id && j.status === "open").length : 0,
+      issues: (S.issues || []).filter((i) => i.status === "open").length };
   }
-  $("#tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (!b) return; tab = b.dataset.tab; LS.set("cfd.tab", tab); ui.draft = null; render(); window.scrollTo(0, 0); });
+  function tileSub(k) {
+    const u = me(); const n = (x) => x === 1 ? "" : "s";
+    if (k === "approvals") { const c = pendingFor(u.role, u.id); return c ? c + " waiting" : "Nothing waiting"; }
+    if (k === "messages") { const c = chatUnreadTotal(); return c ? c + " unread" : "Team & private chats"; }
+    if (k === "issues") { const o = (S.issues || []).filter((i) => i.status !== "closed").length; return o + " open issue" + n(o); }
+    if (k === "jobs") { const o = S.jobs.filter((j) => (u.role === "technician" ? j.assignee === u.id : true) && j.status === "open").length; return o + " open job" + n(o); }
+    if (k === "today" && u.role === "technician") { const a = myAssignment(u.id, TODAY()); const d = openDutyOf(u.id); return d ? (d.end ? "Duty closed" : "On duty since " + d.start) : a?.type === "duty" ? esc(a.slot.name) + " · not started" : a?.type === "leave" ? "On leave" : a?.type === "off" ? "Off today" : "Not on roster"; }
+    if (k === "today") { const d = dutyOf(u.id, TODAY()); return (d ? d.visits.length : 0) + " site" + n(d ? d.visits.length : 0) + " visited today"; }
+    if (k === "library") { const c = (S.docs || []).length; return c + " document" + n(c); }
+    if (k === "mykpi" || k === "kpi") return "Cumulative score";
+    if (k === "board") return "Today's roster";
+    if (k === "overview") { const on = S.duties.filter((d) => d.date === TODAY() && d.start && !d.end).length; return on + " on duty now"; }
+    if (k === "siteinfo") return "Contacts & location";
+    if (k === "timesheets") return "Monthly · Excel";
+    if (k === "team") return "People & leave";
+    if (k === "prepare") return "Next day roster";
+    return "";
+  }
+  function homeView() {
+    const u = me(); const p = pins(); const cnt = tabCounts(); const lbl = Object.fromEntries(TABS[u.role]);
+    const h = new Date().getHours(); const greet = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
+    return `<div class="stack">${u.role === "engineer" && serverOld() ? `<div class="errs"><b>Server code is out of date.</b> Deploy the latest Code.gs as a New version.</div>` : ""}${pushCard()}
+      <div class="hometop"><div><h2>${greet}, ${esc(u.name.split(" ")[0])}</h2><p class="small muted">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "long" })}</p></div>
+        <button type="button" class="btn sm" data-act="homeEdit">${ui.homeEdit ? "Done" : "Edit Home"}</button></div>
+      <div class="tiles2">${p.map((k) => `<div class="tile2" role="button" tabindex="0" data-goto="${k}"><span class="ic">${icon(k)}</span><b>${esc(lbl[k] || k)}</b><small>${tileSub(k)}</small>${!ui.homeEdit && cnt[k] ? `<span class="badge">${cnt[k]}</span>` : ""}${ui.homeEdit ? `<button type="button" class="unpin" data-unpin="${k}" aria-label="Remove ${esc(lbl[k] || k)} from Home">✕</button>` : ""}</div>`).join("")}
+        <button type="button" class="tile2 add" data-act="openMenu">+ Add to Home</button></div>
+      <p class="small muted">Open <b>Menu</b> and tap ☆ next to any section to add it here. Your Home layout is saved on this phone.</p></div>`;
+  }
+  function renderTabs() {
+    const u = me(); const cnt = tabCounts(); const p = pins();
+    $("#tabs").innerHTML = TABS[u.role].map(([k, l]) => `<div class="mitem"><button class="tab" data-tab="${k}" aria-selected="${k === tab}">${icon(k)}<span>${l}</span>${cnt[k] ? `<span class="badge">${cnt[k]}</span>` : ""}</button>${k === "home" ? "" : `<button type="button" class="pin" data-pin="${k}" aria-pressed="${p.includes(k)}" aria-label="${p.includes(k) ? "Remove " + l + " from Home" : "Add " + l + " to Home"}" title="${p.includes(k) ? "On Home" : "Add to Home"}">${STAR(p.includes(k))}</button>`}</div>`).join("");
+    const lbl = Object.fromEntries(TABS[u.role]);
+    $("#navTitle").innerHTML = tab === "home" ? "" : `${icon(tab)}<span>${esc(lbl[tab] || "")}</span>`;
+    $("#homeBtn").setAttribute("aria-current", tab === "home" ? "page" : "false");
+    const total = (cnt.approvals || 0) + (cnt.messages || 0);
+    $("#menuBadge").innerHTML = total ? `<span class="badge">${total}</span>` : "";
+  }
+  function openMenu(on) { $("#drawer").hidden = !on; if (on) { const a = $("#tabs .tab[aria-selected=\"true\"]"); (a || $("#tabs .tab"))?.focus(); } }
+  function goTab(k) { tab = k; LS.set("cfd.tab", tab); ui.draft = null; openMenu(false); render(); window.scrollTo(0, 0); }
+  $("#menuBtn").addEventListener("click", () => openMenu(true));
+  $("#homeBtn").addEventListener("click", () => goTab("home"));
+  $("#drawer").addEventListener("click", (e) => {
+    if (e.target.closest("[data-close]")) { openMenu(false); return; }
+    const pb = e.target.closest("[data-pin]");
+    if (pb) { const k = pb.dataset.pin; let p = pins(); p = p.includes(k) ? p.filter((x) => x !== k) : [...p, k]; setPins(p); renderTabs(); if (tab === "home") render(); toast(p.includes(k) ? "Added to Home" : "Removed from Home"); return; }
+    const b = e.target.closest("[data-tab]"); if (b) goTab(b.dataset.tab);
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("#drawer").hidden) openMenu(false);
+    if ((e.key === "Enter" || e.key === " ") && e.target.classList && e.target.classList.contains("tile2") && e.target.dataset.goto) { e.preventDefault(); e.target.click(); }
+  });
 
   /* ================= roster board ================= */
   function boardHTML(date) {
@@ -885,22 +1007,25 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   }
   /* ================= site info (contact + location) ================= */
   const mapsUrl = (x) => x.mapLink || (x.lat != null && x.lng != null ? `https://www.google.com/maps?q=${x.lat},${x.lng}` : "");
+  function contactsOf(x) { const l = Array.isArray(x.contacts) ? x.contacts : []; return l.length ? l : (x.contactName || x.contactPhone ? [{ id: "", name: x.contactName, designation: "", phone: x.contactPhone, note: x.contactNote, by: x.infoBy, at: x.infoAt }] : []); }
+  const telHref = (p) => "tel:" + String(p || "").replace(/[^+\d]/g, "");
   function siteGroupOf(id) { const s = S.slots.find((q) => q.shift !== "Night" && q.sites.includes(id)); return s ? (s.tag || s.name) : "Other"; }
   function siteInfoView() {
     const q = (ui.siteQ || "").toLowerCase(); const isEng = me().role === "engineer";
-    const list = S.sites; const sq = (x) => (x.name + " " + x.area + " " + siteGroupOf(x.id) + " " + (x.contactName || "")).toLowerCase();
+    const list = S.sites; const sq = (x) => (x.name + " " + x.area + " " + siteGroupOf(x.id) + " " + contactsOf(x).map((c) => c.name + " " + c.designation).join(" ")).toLowerCase();
     const pend = (id) => (S.siteUpdates || []).find((u) => u.site === id && u.status === "pending");
-    return `<div class="stack"><div class="row between"><div><h2>Site info</h2><p class="small muted">Contact details are saved straight away. ${isEng ? "Location details you enter are saved straight away." : "Location changes go to the Engineer for approval."}</p></div>
+    return `<div class="stack"><div class="row between"><div><h2>Site info</h2><p class="small muted">Contacts are saved straight away (name and mobile required). ${isEng ? "Location details you enter are saved straight away." : "Location changes go to the Engineer for approval."}</p></div>
       <label class="field"><span>Search</span><input id="siteQ" value="${esc(ui.siteQ || "")}" placeholder="Site, area or contact"></label></div>
       ${list.map((x) => { const m = mapsUrl(x); const pu = pend(x.id);
         const head = `<div class="row between"><span><b>${esc(x.name)}</b> <span class="small muted">${esc(x.area)} · ${esc(siteGroupOf(x.id))}</span></span>${ui.siteEdit === x.id ? "" : `<button class="btn sm" data-act="siteEdit" data-id="${x.id}">Edit</button>`}</div>`;
         if (ui.siteEdit !== x.id) return `<div class="card" data-sq="${esc(sq(x))}" ${q && !sq(x).includes(q) ? "hidden" : ""}>${head}
-          <div class="kv"><div><span class="label">Contact</span><b>${x.contactName ? esc(x.contactName) : '<span class="muted">—</span>'}</b>${x.contactPhone ? `<br><a class="mono" href="tel:${esc(x.contactPhone.replace(/[^+\d]/g, ""))}">${esc(x.contactPhone)}</a>` : ""}${x.contactNote ? `<br><span class="small">${esc(x.contactNote)}</span>` : ""}</div>
+          <div class="kv"><div><span class="label">Contacts (${contactsOf(x).length})</span>${contactsOf(x).map((c) => `<div><b>${esc(c.name)}</b>${c.designation ? ` <span class="small muted">· ${esc(c.designation)}</span>` : ""}<br><a class="mono" href="${telHref(c.phone)}">${esc(c.phone)}</a>${c.note ? `<br><span class="small">${esc(c.note)}</span>` : ""}</div>`).join("") || '<span class="muted">—</span>'}</div>
             <div><span class="label">Location</span>${x.address ? `<span class="small">${esc(x.address)}</span><br>` : ""}${m ? `<a href="${esc(m)}" target="_blank" rel="noopener">Open in Maps</a>` : '<span class="muted small">Not set</span>'}${x.lat != null ? ` <span class="pill green">GPS set</span>` : ""}</div></div>
           ${pu ? `<p class="small"><span class="pill amber">Location change waiting for Engineer</span> from ${esc(nm(pu.by))}</p>` : ""}
-          ${x.infoBy ? `<p class="small muted">Contact updated by ${esc(nm(x.infoBy))} · ${dt(x.infoAt)}</p>` : ""}</div>`;
+          ${x.infoBy ? `<p class="small muted">Last updated by ${esc(nm(x.infoBy))} · ${dt(x.infoAt)}</p>` : ""}</div>`;
         return `<div class="card">${head}
-          <form id="fSiteInfo" data-id="${x.id}"><h3>Contact details</h3><div class="grid2"><label class="field"><span>Contact person</span><input id="siName" value="${esc(x.contactName || "")}" placeholder="Name / position"></label><label class="field"><span>Phone</span><input id="siPhone" inputmode="tel" value="${esc(x.contactPhone || "")}" placeholder="+971 5x xxx xxxx"></label><label class="field full"><span>Notes</span><input id="siNote" value="${esc(x.contactNote || "")}" placeholder="e.g. Gate pass needed, call security first"></label></div><button class="btn primary">Save contact</button></form>
+          <h3>Contacts</h3>${contactsOf(x).map((c) => `<div class="visit"><span><b>${esc(c.name)}</b>${c.designation ? ` · <span class="small">${esc(c.designation)}</span>` : ""}<br><a class="mono" href="${telHref(c.phone)}">${esc(c.phone)}</a>${c.note ? ` · <span class="small">${esc(c.note)}</span>` : ""}<br><span class="small muted">Added by ${esc(nm(c.by))}${c.at ? " · " + dt(c.at) : ""}</span></span>${c.id && (me().role === "engineer" || c.by === viewer) ? `<button type="button" class="btn sm danger" data-act="contactDel" data-id="${c.id}" data-site="${x.id}">Remove</button>` : ""}</div>`).join("") || '<p class="empty">No contacts yet.</p>'}
+          <form id="fSiteInfo" data-id="${x.id}"><h3>Add a contact</h3><div class="grid2"><label class="field"><span>Name *</span><input id="siName" required placeholder="Full name"></label><label class="field"><span>Designation</span><input id="siDesig" placeholder="e.g. Plant manager, Security"></label><label class="field"><span>Mobile *</span><input id="siPhone" required inputmode="tel" placeholder="+971 5x xxx xxxx"></label><label class="field"><span>Notes</span><input id="siNote" placeholder="e.g. Call before 8 am"></label></div><button class="btn primary">Add contact</button></form>
           <form id="fSiteLoc" data-id="${x.id}" style="margin-top:14px"><h3>Location details</h3><div class="grid2"><label class="field full"><span>Address / directions</span><input id="slAddr" value="${esc(x.address || "")}" placeholder="e.g. Plot 12, Street 5, behind Al Ghurair"></label><label class="field full"><span>Google Maps link</span><input id="slLink" value="${esc(x.mapLink || "")}" placeholder="https://maps.app.goo.gl/..."></label>
             <label class="field"><span>Latitude</span><input id="slLat" class="mono" value="${x.lat ?? ""}" placeholder="25.0xxxx"></label><label class="field"><span>Longitude</span><input id="slLng" class="mono" value="${x.lng ?? ""}" placeholder="55.0xxxx"></label>${isEng ? "" : `<label class="field full"><span>Note for Engineer (optional)</span><input id="slNote"></label>`}</div>
             <div class="row"><button type="button" class="btn" data-act="slHere">📍 Use my location</button><button class="btn primary">${isEng ? "Save location" : "Send for approval"}</button><button type="button" class="btn" data-act="siteEditClose">Close</button></div></form></div>`;
@@ -912,6 +1037,44 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       return `<div class="item"><div class="row between"><b>${esc(x.name)}</b><span class="small muted">${esc(nm(u.by))} · ${dt(u.at)}</span></div>
         <div class="small">${u.address ? "Address: " + esc(u.address) + "<br>" : ""}${u.mapLink ? `Map: <a href="${esc(u.mapLink)}" target="_blank" rel="noopener">open link</a><br>` : ""}${u.lat != null ? `GPS: <span class="mono">${u.lat}, ${u.lng}</span> · <a href="https://www.google.com/maps?q=${u.lat},${u.lng}" target="_blank" rel="noopener">check on map</a><br>` : ""}${u.note ? "Note: " + esc(u.note) : ""}</div>
         <div class="form-inline"><input placeholder="Comment (needed to reject)" data-cmt="${u.id}" aria-label="Comment"><button class="btn sm go" data-act="locOk" data-id="${u.id}">Approve</button><button class="btn sm danger" data-act="locNo" data-id="${u.id}">Reject</button></div></div>`; }).join("") : '<p class="empty">No location updates waiting.</p>'}</section>`;
+  }
+
+  /* ================= document library ================= */
+  const DOC_CATS = ["Forms", "Manuals", "Technical data", "Procedures (SOP)", "Drawings", "Certificates", "Training", "Other"];
+  const fmtSize = (b) => !b ? "" : b > 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB";
+  function libraryView() {
+    const docs = (S.docs || []); const q = (ui.libQ || "").toLowerCase();
+    const cats = DOC_CATS.filter((c) => docs.some((d) => d.category === c)).concat([...new Set(docs.map((d) => d.category))].filter((c) => !DOC_CATS.includes(c)));
+    const dq = (d) => (d.title + " " + d.notes + " " + d.fileName + " " + d.category).toLowerCase();
+    const list = docs.filter((d) => !ui.libCat || d.category === ui.libCat);
+    const card = (d) => `<div class="item" data-lq="${esc(dq(d))}" ${q && !dq(d).includes(q) ? "hidden" : ""}><div class="row between"><b>${esc(d.title)}</b><span class="pill blue">${esc(d.category)}</span></div>
+      ${d.notes ? `<div class="small">${esc(d.notes)}</div>` : ""}
+      <div class="small muted">${d.fileName ? esc(d.fileName) + " · " + fmtSize(Number(d.size)) + " · " : ""}Added by ${esc(nm(d.by))} · ${dt(d.at)}</div>
+      <div class="row">${d.fileId ? `<button class="btn sm primary" data-act="docGet" data-id="${d.id}">⬇ Download</button>` : ""}${d.link ? `<a class="btn sm" href="${esc(d.link)}" target="_blank" rel="noopener">Open link</a>` : ""}${me().role === "engineer" || d.by === viewer ? `<button class="btn sm danger" data-act="docDel" data-id="${d.id}">Remove</button>` : ""}</div></div>`;
+    return `<div class="stack"><div class="row between"><div><h2>Document Library</h2><p class="small muted">Forms, manuals and technical details for everyone. Files are stored privately in the company Google Drive.</p></div>
+        <button class="btn ${ui.libAdd ? "" : "primary"}" data-act="libAdd">${ui.libAdd ? "Close" : "+ Add document"}</button></div>
+      ${ui.libAdd ? `<form class="card" id="fDoc"><h2>Add a document</h2><div class="grid2">
+        <label class="field"><span>Title *</span><input id="dcTitle" required placeholder="e.g. PRMS PRS-1200D operation manual"></label>
+        <label class="field"><span>Category</span><select id="dcCat">${DOC_CATS.map((c) => `<option>${c}</option>`).join("")}</select></label>
+        <label class="field full"><span>Notes</span><textarea id="dcNotes" placeholder="What it is, which sites or equipment it is for"></textarea></label>
+        <label class="field"><span>Attach file (max 10 MB)</span><input type="file" id="dcFile"></label>
+        <label class="field"><span>or link (optional)</span><input id="dcLink" placeholder="https://..."></label></div>
+        <button class="btn primary">Save to library</button></form>` : ""}
+      <div class="form-inline"><label class="field"><span>Search</span><input id="libQ" value="${esc(ui.libQ || "")}" placeholder="Title, notes or file name"></label>
+        <label class="field"><span>Category</span><select id="libCat"><option value="">All (${docs.length})</option>${cats.map((c) => `<option ${c === ui.libCat ? "selected" : ""}>${esc(c)}</option>`).join("")}</select></label></div>
+      <section class="card">${list.length ? list.map(card).join("") : '<p class="empty">No documents yet. Tap “+ Add document”.</p>'}</section></div>`;
+  }
+  function readFileB64(file) { return new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1] || ""); r.onerror = () => no(new Error("Could not read the file.")); r.readAsDataURL(file); }); }
+  async function downloadDoc(id) {
+    busy(true);
+    try {
+      const r = await call("docGet", { payload: { id } });
+      if (!r.ok) { toast(r.error || "Could not download.", true); return; }
+      const bin = atob(r.data); const arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([arr], { type: r.mime || "application/octet-stream" }));
+      const a = document.createElement("a"); a.href = url; a.download = r.name || "document"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000); toast("Downloaded " + (r.name || "file"));
+    } catch (e) { toast(e.message || "Could not download.", true); } finally { busy(false); }
   }
 
   /* ================= site issues ================= */
@@ -1394,16 +1557,16 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (!S) return;
     const u = me(); if (!u) { logoutLocal("Your account is no longer active."); return; }
     $("#loginView").hidden = true; $("#appView").hidden = false;
-    if (!tab || !TABS[u.role].some((x) => x[0] === tab)) { const saved = LS.get("cfd.tab"); tab = TABS[u.role].some((x) => x[0] === saved) ? saved : TABS[u.role][0][0]; }
+    if (!tab || !TABS[u.role].some((x) => x[0] === tab)) { const saved = LS.get("cfd.tab"); tab = TABS[u.role].some((x) => x[0] === saved) ? saved : "home"; }
     renderTabs();
     const roleLabel = { engineer: "Engineer", supervisor: "Supervisor", technician: "CNG Technician" }[u.role];
     $("#roleLine").textContent = "Cloud Energi Gas · " + roleLabel;
     $("#whoBox").innerHTML = `${esc(u.name)}<span>${roleLabel}</span>`;
     $("#syncInfo").textContent = lastSync ? "Updated " + nowHM() : "Updating…";
     const views = {
-      engineer: { issues: issuesView, siteinfo: siteInfoView, overview: engOverview, approvals: engApprovals, prepare: engPrepare, jobs: jobsAdmin, messages: messagesView, board: boardView, team: engTeam, sites: engSites, qr: engQr, timesheets: engTimesheets, kpi: engKpi, logs: engLogs },
-      supervisor: { issues: issuesView, siteinfo: siteInfoView, today: techToday, prepare: supPrepare, jobs: jobsAdmin, approvals: supApprovals, messages: messagesView, board: boardView, team: () => `<div class="stack"><section class="card"><h2>My team</h2>${teamTable(techs(viewer))}</section><section class="card"><div class="row between"><h2>KPI · ${perLabel(ui.kpiMonth || "all")}</h2><label class="field"><span>Period</span><select id="kpiMonth">${periodOptions(ui.kpiMonth || "all")}</select></label></div>${supKpiHTML([u], ui.kpiMonth || "all", false)}<h3>My technicians</h3>${kpiTableHTML(techs(viewer), ui.kpiMonth || "all")}</section></div>` },
-      technician: { issues: issuesView, siteinfo: siteInfoView, today: techToday, jobs: techJobs, messages: messagesView, emergency: techEmergency, leave: techLeave, mysheet: techSheet, mykpi: techKpi, board: boardView }
+      engineer: { home: homeView, library: libraryView, issues: issuesView, siteinfo: siteInfoView, overview: engOverview, approvals: engApprovals, prepare: engPrepare, jobs: jobsAdmin, messages: messagesView, board: boardView, team: engTeam, sites: engSites, qr: engQr, timesheets: engTimesheets, kpi: engKpi, logs: engLogs },
+      supervisor: { home: homeView, library: libraryView, issues: issuesView, siteinfo: siteInfoView, today: techToday, prepare: supPrepare, jobs: jobsAdmin, approvals: supApprovals, messages: messagesView, board: boardView, team: () => `<div class="stack"><section class="card"><h2>My team</h2>${teamTable(techs(viewer))}</section><section class="card"><div class="row between"><h2>KPI · ${perLabel(ui.kpiMonth || "all")}</h2><label class="field"><span>Period</span><select id="kpiMonth">${periodOptions(ui.kpiMonth || "all")}</select></label></div>${supKpiHTML([u], ui.kpiMonth || "all", false)}<h3>My technicians</h3>${kpiTableHTML(techs(viewer), ui.kpiMonth || "all")}</section></div>` },
+      technician: { home: homeView, library: libraryView, issues: issuesView, siteinfo: siteInfoView, today: techToday, jobs: techJobs, messages: messagesView, emergency: techEmergency, leave: techLeave, mysheet: techSheet, mykpi: techKpi, board: boardView }
     }[u.role];
     const focus = document.activeElement && document.activeElement.id;
     const keep = $("#chatTxt") ? $("#chatTxt").value : "";
@@ -1421,6 +1584,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (t.id === "prepSup") { ui.prepSup = t.value; ui.draft = null; render(); return; }
     if (t.id === "tsTech") { ui.tsTech = t.value; render(); return; }
     if (t.id === "tsMonth") { ui.tsMonth = t.value || TODAY().slice(0, 7); render(); return; }
+    if (t.id === "libCat") { ui.libCat = t.value; render(); return; }
     if (t.id === "issueFilter") { ui.issueFilter = t.value; render(); return; }
     if (t.id === "kpiMonth") { ui.kpiMonth = t.value || "all"; render(); return; }
     if (t.id === "chatTo") { ui.chatTo = t.value; return; }
@@ -1441,6 +1605,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   });
   document.addEventListener("keydown", (e) => { if (e.target.id === "chatTxt" && e.key === "Enter" && !e.shiftKey && window.matchMedia("(min-width: 761px)").matches) { e.preventDefault(); $("#fChat").requestSubmit(); } });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "libQ") { ui.libQ = e.target.value; const q = ui.libQ.toLowerCase(); document.querySelectorAll("[data-lq]").forEach((c) => { c.hidden = !!q && !c.dataset.lq.includes(q); }); return; }
     if (e.target.id === "siteQ") { ui.siteQ = e.target.value; const q = ui.siteQ.toLowerCase(); document.querySelectorAll("[data-sq]").forEach((c) => { c.hidden = !!q && !c.dataset.sq.includes(q); }); return; }
     if (e.target.id === "chatTxt") { e.target.style.height = "auto"; e.target.style.height = Math.min(120, e.target.scrollHeight) + "px"; }
     if (e.target.id === "deEnd" || e.target.id === "deKm") {
@@ -1457,7 +1622,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const cr = e.target.closest("[data-room]"); if (cr) { openRoom(cr.dataset.room); return; }
     const co = e.target.closest("[data-old]"); if (co) { ui.chatOld = co.dataset.old; ui.chatOpen = null; render(); const t = S.threads.find((x) => x.id === co.dataset.old); if (t && t.unread.includes(viewer)) call("msgRead", { payload: { id: t.id } }).catch(() => {}); return; }
     const cm = e.target.closest("[data-cmode]"); if (cm) { const t = $("#chatTxt")?.value || ""; ui.chatMode = cm.dataset.cmode; render(); const n = $("#chatTxt"); if (n) { n.value = t; } if (ui.chatMode === "private") $("#chatTo")?.focus(); else n?.focus(); return; }
-    const g = e.target.closest("[data-goto]"); if (g) { tab = g.dataset.goto; render(); return; }
+    const up = e.target.closest("[data-unpin]"); if (up) { setPins(pins().filter((x) => x !== up.dataset.unpin)); render(); return; }
+    const g = e.target.closest("[data-goto]"); if (g) { if (ui.homeEdit && g.classList.contains("tile2")) return; tab = g.dataset.goto; LS.set("cfd.tab", tab); render(); window.scrollTo(0, 0); return; }
     if (e.target.closest("#supEditor") && ui.draft && e.target.closest("[data-soff]")) { applyEditorEvent(e, ui.draft, "s"); render(); return; }
     const rk = e.target.closest("[data-roster]"); if (rk && e.target.closest("[data-eoff]")) { applyEditorEvent(e, ui.engEdit[rk.dataset.roster], "e"); render(); return; }
     const b = e.target.closest("[data-act]"); if (!b) return;
@@ -1491,7 +1657,13 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "wkDel": api("delWork", { id }); return;
       case "jobDone": { const n = (document.querySelector(`[data-jnote="${id}"]`)?.value || "").trim(); if (!n) { toast("Write what was done", true); return; } api("jobComplete", { id, note: n }); return; }
       case "nightVisit": { const sid = $("#nightSite")?.value; if (!sid) { toast("Choose the site first", true); return; } if (QR()) { openScan(sid); return; } if (!arm()) return; markVisited(sid); return; }
+      case "openMenu": openMenu(true); return;
+      case "homeEdit": ui.homeEdit = !ui.homeEdit; render(); return;
       case "siteEdit": ui.siteEdit = id; render(); return;
+      case "contactDel": if (!arm()) return; api("siteContactDel", { site: b.dataset.site, id }); return;
+      case "libAdd": ui.libAdd = !ui.libAdd; render(); return;
+      case "docGet": downloadDoc(id); return;
+      case "docDel": if (!arm()) return; api("docDel", { id }); return;
       case "siteEditClose": ui.siteEdit = null; render(); return;
       case "slHere": { try { busy(true); const c = await getPosition(); busy(false); $("#slLat").value = c.latitude.toFixed(6); $("#slLng").value = c.longitude.toFixed(6); toast("Location filled (accuracy about " + Math.round(c.accuracy) + " m)"); } catch (err) { busy(false); toast(err.message, true); } return; }
       case "locOk": api("siteLocDecide", { id, ok: true, comment: cmt() }); return;
@@ -1528,11 +1700,18 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       if (driver && $("#dsKm").value === "") { toast("Enter opening km.", true); return; }
       api("startDuty", { start: $("#dsStart").value, vehicle: veh, driver, coDriver: driver ? "" : $("#dsDrv").value, kmStart: driver ? +$("#dsKm").value : null });
     } else if (f.id === "fSiteInfo") {
-      const r = await api("siteInfo", { site: f.dataset.id, contactName: $("#siName").value.trim(), contactPhone: $("#siPhone").value.trim(), contactNote: $("#siNote").value.trim() });
-      if (r && r.ok) { ui.siteEdit = null; render(); }
+      if (!$("#siName").value.trim() || $("#siPhone").value.replace(/\D/g, "").length < 7) { toast("Name and a valid mobile number are required.", true); return; }
+      await api("siteContactAdd", { site: f.dataset.id, name: $("#siName").value.trim(), designation: $("#siDesig").value.trim(), phone: $("#siPhone").value.trim(), note: $("#siNote").value.trim() });
     } else if (f.id === "fSiteLoc") {
       const r = await api("siteLocReq", { site: f.dataset.id, address: $("#slAddr").value.trim(), mapLink: $("#slLink").value.trim(), lat: $("#slLat").value.trim(), lng: $("#slLng").value.trim(), note: $("#slNote") ? $("#slNote").value.trim() : "" });
       if (r && r.ok) { ui.siteEdit = null; render(); }
+    } else if (f.id === "fDoc") {
+      const file = $("#dcFile").files[0]; const link = $("#dcLink").value.trim();
+      if (!file && !link) { toast("Attach a file or add a link.", true); return; }
+      if (file && file.size > 10 * 1024 * 1024) { toast("File is larger than 10 MB.", true); return; }
+      let data = ""; if (file) { try { data = await readFileB64(file); } catch (err) { toast(err.message, true); return; } }
+      const r = await api("docAdd", { title: $("#dcTitle").value.trim(), category: $("#dcCat").value, notes: $("#dcNotes").value.trim(), link, fileName: file ? file.name : "", mime: file ? (file.type || "") : "", data });
+      if (r && r.ok) { ui.libAdd = false; render(); }
     } else if (f.id === "fIssue") {
       const r = await api("issueAdd", { site: $("#isSite").value, desc: $("#isDesc").value.trim() }); if (r && r.ok) { ui.issueFilter = "active"; render(); }
     } else if (f.id === "fCar") {
