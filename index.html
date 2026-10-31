@@ -343,7 +343,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
     finally { bg ? bgBusy(false) : busy(false); }
   }
-  const NEED_SERVER = "2026-10-19c";
+  const NEED_SERVER = "2026-10-31b";
   const serverOld = () => S && (!S.serverVersion || S.serverVersion < NEED_SERVER);
   const QR = () => S && S.visitMode === "qr"; // false = simple "Visited" tap (no QR yet)
   let pendingLink = null;
@@ -391,6 +391,9 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   const supSlots = (sup) => S.slots.filter((s) => s.sup === sup);
   const supSites = (sup) => [...new Set(supSlots(sup).flatMap((s) => s.sites))];
   const onLeave = (tech, date) => S.leaves.some((l) => l.tech === tech && l.status === "approved" && l.dates.includes(date));
+  const leaveOf = (tech, date) => S.leaves.find((l) => l.tech === tech && l.status === "approved" && l.dates.includes(date));
+  const leaveName = (tech, date) => { const l = leaveOf(tech, date); const k = l && String(l.reason || "").split(" – ")[0]; return k && /leave/i.test(k) ? k : "Leave"; };
+  const supAwayOf = (techId) => { const u = S.users.find((x) => x.id === techId); return !!(u && u.role === "technician" && u.sup && onLeave(u.sup, TODAY())); };
   const unreadCount = (id) => S.threads.filter((t) => t.unread.includes(id)).length;
   function effectiveRoster(sup, date) {
     const r = S.rosters[date + "|" + sup];
@@ -425,36 +428,65 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const km = (d && d.driver && d.kmEnd != null && d.kmStart != null ? d.kmEnd - d.kmStart : 0) + (d && d.kmPrev || 0);
     const sl = slotOf(d); const supDuty = d && String(d.slot).startsWith("sup:");
     const covN = d && sl ? (supDuty ? new Set(d.visits.map((v) => v.site)).size : new Set(d.visits.map((v) => v.site).filter((x) => sl.sites.includes(x))).size) : 0;
-    return { d, dutyH, emH, ot, km, covN, covT: sl && !supDuty ? sl.sites.length : 0 };
+    const extra = d && sl && !supDuty && sl.shift === "Night" ? new Set(d.visits.map((v) => v.site).filter((x) => !sl.sites.includes(x))).size : 0;
+    return { d, dutyH, emH, ot, km, covN, extra, covT: sl && !supDuty ? sl.sites.length : 0 };
   }
-  function kpi(tech, month) {
-    const ds = S.duties.filter((d) => d.tech === tech && d.date.slice(0, 7) === month && d.end);
-    const covs = ds.map((d) => { const c = dayCalc(tech, d.date); return c.covT ? c.covN / c.covT : null; }).filter((x) => x !== null);
-    const coverage = covs.length ? covs.reduce((a, b) => a + b, 0) / covs.length : 0;
-    const km = ds.reduce((a, d) => a + dayCalc(tech, d.date).km, 0);
-    const jm = S.jobs.filter((j) => j.assignee === tech && j.created.slice(0, 7) === month && j.status !== "requested" && j.status !== "rejected");
+  /* ---------- KPI: cumulative over the chosen period ("all" = since the app started) ---------- */
+  function perRange(period) {
+    if (!period || period === "all") { const lo = addDays(TODAY(), -((S.dataDays || 100) - 1)); return [S.appStart > lo ? S.appStart : lo, TODAY()]; }
+    const [y, m] = period.split("-").map(Number); return [period + "-01", period + "-" + pad(new Date(y, m, 0).getDate())];
+  }
+  const inPer = (date, R) => !!date && date.slice(0, 10) >= R[0] && date.slice(0, 10) <= R[1];
+  const perLabel = (period) => !period || period === "all" ? "Cumulative since " + fmtD(perRange("all")[0]) : parse(period + "-01").toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  function periodOptions(sel) {
+    const opts = [["all", "Cumulative (since start)"]]; let m = TODAY().slice(0, 7); const first = (S.appStart || TODAY()).slice(0, 7);
+    for (let i = 0; i < 24 && m >= first; i++) { opts.push([m, parse(m + "-01").toLocaleDateString("en-GB", { month: "long", year: "numeric" })]); const [y, mm] = m.split("-").map(Number); m = mm === 1 ? (y - 1) + "-12" : y + "-" + pad(mm - 1); }
+    return opts.map(([v, l]) => `<option value="${v}" ${v === sel ? "selected" : ""}>${l}</option>`).join("");
+  }
+  function jobDoneAt(j) { const h = (j.history || []).filter((x) => /^Completed/.test(x.text)); return h.length ? h[h.length - 1].at : ""; }
+  function kpi(tech, period) {
+    const R = perRange(period);
+    // every duty in the period counts, including today's duty that is still open
+    const ds = S.duties.filter((d) => d.tech === tech && inPer(d.date, R) && d.start);
+    let covN = 0, covT = 0, km = 0, ot = 0;
+    ds.forEach((d) => { const c = dayCalc(tech, d.date); covN += Math.min(c.covN, c.covT || c.covN); covT += c.covT; km += c.km; ot += c.ot; });
+    const coverage = covT ? covN / covT : 0;
+    // jobs: assigned in the period, plus older jobs still open or completed in the period
+    const jm = S.jobs.filter((j) => j.assignee === tech && !["requested", "rejected"].includes(j.status) &&
+      (inPer(j.created, R) || (j.created.slice(0, 10) < R[0] && (j.status === "open" || inPer(jobDoneAt(j), R)))));
     const jobsDone = jm.filter((j) => j.status !== "open").length;
-    return { jobsTotal: jm.length, jobsDone, jobRate: jm.length ? jobsDone / jm.length : null, days: ds.length, coverage, km, drivingDays: ds.filter((d) => drove(d)).length, workEntries: ds.reduce((a, d) => a + (d.work || []).length, 0), ot: ds.reduce((a, d) => a + dayCalc(tech, d.date).ot, 0), wrong: S.logs.filter((l) => l.type === "location" && l.tech === tech && l.at.slice(0, 7) === month).length };
+    return { jobsTotal: jm.length, jobsDone, jobRate: jm.length ? jobsDone / jm.length : null, days: ds.length, covN, covT, coverage, km, drivingDays: ds.filter((d) => drove(d)).length,
+      workEntries: ds.reduce((a, d) => a + (d.work || []).length, 0), ot, wrong: S.logs.filter((l) => l.type === "location" && l.tech === tech && inPer(l.at, R)).length };
   }
-  function teamKpi(list, month) {
-    const local = Math.max(0, ...techs().map((t) => kpi(t.id, month).km));
-    const maxKm = Math.max(local, S.kmMax[month] || 0);
+  function kmServer(tech, R) { // km of closed duties from the server (covers technicians this user cannot see)
+    let t = 0; Object.keys(S.kmTech || {}).forEach((k) => { const [m, id] = k.split("|"); if (id === tech && m >= R[0].slice(0, 7) && m <= R[1].slice(0, 7)) t += S.kmTech[k]; }); return t;
+  }
+  function teamKpi(list, period) {
+    const R = perRange(period);
+    const ids = new Set([...techs().map((t) => t.id), ...Object.keys(S.kmTech || {}).map((k) => k.split("|")[1])]);
+    const maxKm = Math.max(0, ...[...ids].map((id) => Math.max(kmServer(id, R), techs().some((t) => t.id === id) ? kpi(id, period).km : 0)));
     const W = S.kpiW;
-    return list.map((t) => { const k = kpi(t.id, month);
-      const kmScore = maxKm ? k.km / maxKm : 0;
-      let num = W.site * k.coverage + W.drive * kmScore, den = W.site + W.drive;
-      if (k.jobRate != null) { num += W.job * k.jobRate; den += W.job; }
-      const score = k.days ? Math.round(100 * num / den) : null;
-      return { t, k, kmScore, score };
+    return list.map((t) => { const k = kpi(t.id, period);
+      const kmScore = maxKm ? Math.min(1, k.km / maxKm) : 0;
+      const den = W.site + W.drive + (k.jobRate != null ? W.job : 0);
+      const pts = { site: den ? 100 * W.site * k.coverage / den : 0, job: den && k.jobRate != null ? 100 * W.job * k.jobRate / den : null, drive: den ? 100 * W.drive * kmScore / den : 0 };
+      const score = k.days ? Math.round(pts.site + (pts.job || 0) + pts.drive) : null;
+      return { t, k, kmScore, maxKm, pts, score };
     }).sort((a, b) => (b.score ?? -1) - (a.score ?? -1));
+  }
+  const r1 = (x) => Math.round(x * 10) / 10;
+  function kpiCalc(row) {
+    if (row.score == null) return "No duty in this period.";
+    const { k, pts } = row;
+    return `Site visits ${k.covN}/${k.covT} = ${Math.round(k.coverage * 100)}% → ${r1(pts.site)} pts · Jobs ${k.jobRate == null ? "none assigned (weight shared)" : k.jobsDone + "/" + k.jobsTotal + " = " + Math.round(k.jobRate * 100) + "% → " + r1(pts.job) + " pts"} · Driving ${k.km} of ${row.maxKm} km = ${Math.round(row.kmScore * 100)}% → ${r1(pts.drive)} pts · Total ${row.score}`;
   }
   const rating = (sc) => sc == null ? ["", "No duty"] : sc >= 85 ? ["green", "Excellent"] : sc >= 70 ? ["blue", "Good"] : sc >= 50 ? ["amber", "Fair"] : ["red", "Needs attention"];
   const bar = (v, color) => `<span class="mbar"><span style="width:${Math.round(Math.max(0, Math.min(1, v)) * 100)}%;background:var(${color || "--brand-green"})"></span></span>`;
-  const KPI_NOTE = () => `<p class="small muted">Score = ${S.kpiW.site}% site visits (assigned sites visited, daily average) + ${S.kpiW.job}% job closure (jobs completed ÷ jobs assigned this month) + ${S.kpiW.drive}% driving (km vs. highest in team). If no jobs were assigned, the other two are scaled up. Passenger days count no km.</p>`;
-  function supWorkDays(id, month) {
-    const [y, m] = month.split("-").map(Number); const last = month + "-" + pad(new Date(y, m, 0).getDate());
-    let d = month + "-01" > S.appStart ? month + "-01" : S.appStart; const out = [];
-    for (; d <= last && d <= TODAY(); d = addDays(d, 1)) {
+  const KPI_NOTE = () => `<p class="small muted">Cumulative for the chosen period and updated live, including today's duty. Score = ${S.kpiW.site}% site visits (all assigned sites visited ÷ all assigned sites, every duty day added up) + ${S.kpiW.job}% job closure (jobs completed ÷ jobs assigned, including older jobs still open) + ${S.kpiW.drive}% driving (total km ÷ highest total km in the team). If no jobs were assigned, the job weight is shared by the other two. Passenger days count no km.</p>`;
+  function supWorkDays(id, period) {
+    const R = perRange(period);
+    let d = R[0] > S.appStart ? R[0] : S.appStart; const out = [];
+    for (; d <= R[1] && d <= TODAY(); d = addDays(d, 1)) {
       if (parse(d).getDay() === 0) continue;
       const rec = dutyOf(id, d);
       if (d === TODAY() && !(rec && rec.visits.length)) continue;
@@ -462,29 +494,31 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     }
     return out;
   }
-  function supKpi(id, month) {
-    const T = S.supTarget || 8; const wd = supWorkDays(id, month);
+  function supKpi(id, period) {
+    const R = perRange(period);
+    const T = S.supTarget || 8; const wd = supWorkDays(id, period);
     const visits = wd.reduce((a, x) => a + x.n, 0);
     const own = wd.length ? Math.round(100 * wd.reduce((a, x) => a + Math.min(1, x.n / T), 0) / wd.length) : null;
-    const tk = teamKpi(techs(id), month).filter((x) => x.score != null);
+    const tk = teamKpi(techs(id), period).filter((x) => x.score != null);
     const team = tk.length ? Math.round(tk.reduce((a, x) => a + x.score, 0) / tk.length) : null;
     const score = own == null ? team : team == null ? own : Math.round((S.supW.own * own + S.supW.team * team) / (S.supW.own + S.supW.team));
-    return { days: wd.length, visits, avg: wd.length ? r2(visits / wd.length) : 0, met: wd.filter((x) => x.n >= T).length, zero: wd.filter((x) => !x.n).length, own, team, score, wrong: S.logs.filter((l) => l.type === "location" && l.tech === id && l.at.slice(0, 7) === month).length };
+    return { days: wd.length, visits, avg: wd.length ? r2(visits / wd.length) : 0, met: wd.filter((x) => x.n >= T).length, zero: wd.filter((x) => !x.n).length, own, team, score, wrong: S.logs.filter((l) => l.type === "location" && l.tech === id && inPer(l.at, R)).length };
   }
   function pendingFor(role, id) {
-    if (role === "engineer") return Object.values(S.rosters).filter((r) => r.status === "submitted").length + S.leaves.filter((l) => l.status === "pending_eng").length + S.emergencies.filter((e) => e.status === "pending_eng").length + S.users.filter((u) => u.device === "pending").length + S.jobs.filter((j) => j.status === "pending_eng").length + engReqs().length;
+    if (role === "engineer") return Object.values(S.rosters).filter((r) => r.status === "submitted").length + S.leaves.filter((l) => l.status === "pending_eng").length + S.emergencies.filter((e) => e.status === "pending_eng").length + S.users.filter((u) => u.device === "pending").length + S.jobs.filter((j) => j.status === "pending_eng").length + engReqs().length + (S.siteUpdates || []).filter((x) => x.status === "pending").length
+      + S.leaves.filter((l) => l.status === "pending_sup" && supAwayOf(l.tech)).length + S.emergencies.filter((e) => e.status === "pending_sup" && supAwayOf(e.tech)).length + S.jobs.filter((j) => j.status === "pending_sup" && supAwayOf(j.assignee)).length;
     if (role === "supervisor") { const mine = techs(id).map((t) => t.id); return S.leaves.filter((l) => l.status === "pending_sup" && mine.includes(l.tech)).length + S.emergencies.filter((e) => e.status === "pending_sup" && mine.includes(e.tech)).length + S.jobs.filter((j) => j.status === "pending_sup" && mine.includes(j.assignee)).length + supReqs(id).length; }
     return 0;
   }
 
   /* ================= navigation ================= */
   const TABS = {
-    engineer: [["overview", "Overview"], ["approvals", "Approvals"], ["jobs", "Jobs"], ["messages", "Chat"], ["board", "Roster board"], ["team", "Team"], ["sites", "Sites & slots"], ["qr", "QR codes"], ["timesheets", "Timesheets"], ["kpi", "KPI"], ["logs", "Logs"]],
-    supervisor: [["today", "Site visits"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["approvals", "Approvals"], ["messages", "Chat"], ["board", "Roster board"], ["team", "My team"]],
-    technician: [["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Chat"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
+    engineer: [["overview", "Overview"], ["approvals", "Approvals"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["board", "Roster board"], ["team", "Team"], ["sites", "Sites & slots"], ["qr", "QR codes"], ["timesheets", "Timesheets"], ["kpi", "KPI"], ["logs", "Logs"]],
+    supervisor: [["today", "Site visits"], ["prepare", "Prepare roster"], ["jobs", "Jobs"], ["approvals", "Approvals"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["board", "Roster board"], ["team", "My team"]],
+    technician: [["today", "Today"], ["jobs", "My jobs"], ["emergency", "Emergency duty"], ["leave", "Leave"], ["messages", "Chat"], ["issues", "Site issues"], ["siteinfo", "Site info"], ["mysheet", "My timesheet"], ["mykpi", "My KPI"], ["board", "Roster board"]]
   };
   let tab = null;
-  const ui = { carSwap: false, chatOpen: null, chatMode: "group", chatTo: "", chatPick: false, chatOld: null, boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
+  const ui = { siteEdit: null, siteQ: "", issueFilter: "active", issueOpen: null, carSwap: false, chatOpen: null, chatMode: "group", chatTo: "", chatPick: false, chatOld: null, boardDate: null, prepDate: null, tsTech: null, tsMonth: null, kpiMonth: null, draft: null, engEdit: {}, emEdit: null, leaveDates: [], jobFilter: "active", openThread: null, qrSlot: "all" };
   function renderTabs() {
     const u = me();
     const cnt = { approvals: pendingFor(u.role, u.id), messages: chatUnreadTotal(), jobs: u.role === "technician" ? S.jobs.filter((j) => j.assignee === u.id && j.status === "open").length : 0 };
@@ -497,7 +531,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     return sups().map((sp) => {
       const { r, fallback } = effectiveRoster(sp.id, date);
       const pend = S.rosters[date + "|" + sp.id];
-      const head = `<div class="row between"><h2>${esc(sp.name)}'s team</h2>${r ? (fallback ? `<span class="pill amber">Last approved: ${fmtD(r.date)}</span>` : `<span class="pill green">Approved</span>`) : `<span class="pill">No approved roster</span>`}</div>
+      const head = `<div class="row between"><h2>${esc(sp.name)}'s team${onLeave(sp.id, date) ? ` <span class="pill red">${esc(leaveName(sp.id, date))} – Engineer covering</span>` : ""}</h2>${r ? (fallback ? `<span class="pill amber">Last approved: ${fmtD(r.date)}</span>` : `<span class="pill green">Approved</span>`) : `<span class="pill">No approved roster</span>`}</div>
         ${fallback && pend ? `<p class="small muted">Roster for ${fmtD(date)} is ${pend.status === "submitted" ? "waiting for Engineer approval" : "in draft"}. Technicians follow the last approved roster.</p>` : ""}`;
       if (!r) return `<section class="card">${head}<p class="empty">No roster yet.</p></section>`;
       const zones = S.zones.filter((z) => supSlots(sp.id).some((s) => s.zone === z.id));
@@ -507,7 +541,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
           <span class="who">${t ? `<b>${esc(nm(t))}</b>${r.monitoring === t ? ' <span class="pill green">Monitoring in-charge</span>' : ""}` : "Not assigned"}</span>
           <span class="sites">${s.sites.map((x) => esc(site(x)?.name)).join(" · ")}</span></div>`;
       }).join("")}</div>`).join("");
-      const offs = r.off.map((t) => `<span class="pill amber">${esc(nm(t))} · Off</span>`).concat(techs(sp.id).filter((t) => onLeave(t.id, date)).map((t) => `<span class="pill red">${esc(t.name)} · Leave</span>`));
+      const offs = r.off.map((t) => `<span class="pill amber">${esc(nm(t))} · Off</span>`).concat(techs(sp.id).filter((t) => onLeave(t.id, date)).map((t) => `<span class="pill red">${esc(t.name)} · ${esc(leaveName(t.id, date))}</span>`));
       return `<section class="card">${head}<div class="cols3">${zoneHTML}</div><div class="row"><span class="label">Off / Leave</span>${offs.join("") || '<span class="muted small">None</span>'}</div></section>`;
     }).join("") || '<p class="empty">No supervisors yet.</p>';
   }
@@ -540,7 +574,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   function editorHTML(r, prefix) {
     const tlist = techs(r.sup);
     const zones = S.zones.filter((z) => supSlots(r.sup).some((s) => s.zone === z.id));
-    const opt = (sel, allowEmpty) => `<option value="">${allowEmpty ? "Empty" : "Select technician"}</option>` + tlist.map((t) => { const lv = onLeave(t.id, r.date); return `<option value="${t.id}" ${t.id === sel ? "selected" : ""} ${lv ? "disabled" : ""}>${esc(t.name)}${lv ? " (leave)" : r.off.includes(t.id) ? " (off)" : ""}</option>`; }).join("");
+    const opt = (sel, allowEmpty) => `<option value="">${allowEmpty ? "Empty" : "Select technician"}</option>` + tlist.map((t) => { const lv = onLeave(t.id, r.date); return `<option value="${t.id}" ${t.id === sel ? "selected" : ""} ${lv ? "disabled" : ""}>${esc(t.name)}${lv ? " (" + leaveName(t.id, r.date).toLowerCase() + ")" : r.off.includes(t.id) ? " (off)" : ""}</option>`; }).join("");
     const onDuty = Object.values(r.assign).filter(Boolean);
     const unplaced = tlist.filter((t) => !onDuty.includes(t.id) && !r.off.includes(t.id) && !onLeave(t.id, r.date));
     return `<div class="cols3">${zones.map((z) => `<div class="zone"><h3>${esc(z.name)}</h3>${supSlots(r.sup).filter((s) => s.zone === z.id).map((s) => `
@@ -549,7 +583,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         <span class="sites">${s.shift === "Night" ? "19:00–07:00 · " : "07:00–19:00 · "}${s.sites.length} sites</span></label>`).join("")}</div>`).join("")}</div>
       <div class="grid2">
         <label class="field"><span>Monitoring in-charge (extra duty) · Must</span><select data-${prefix}mon="1"><option value="">Select from technicians on duty</option>${onDuty.map((t) => `<option value="${t}" ${t === r.monitoring ? "selected" : ""}>${esc(nm(t))}</option>`).join("")}</select></label>
-        <div class="field"><span>Off day (tap to mark)</span><div class="chips">${tlist.map((t) => onLeave(t.id, r.date) ? `<span class="chip lock">${esc(t.name)} · Leave</span>` : `<button type="button" class="chip" data-${prefix}off="${t.id}" aria-pressed="${r.off.includes(t.id)}">${esc(t.name)}</button>`).join("")}</div></div>
+        <div class="field"><span>Off day (tap to mark)</span><div class="chips">${tlist.map((t) => onLeave(t.id, r.date) ? `<span class="chip lock">${esc(t.name)} · ${esc(leaveName(t.id, r.date))}</span>` : `<button type="button" class="chip" data-${prefix}off="${t.id}" aria-pressed="${r.off.includes(t.id)}">${esc(t.name)}</button>`).join("")}</div></div>
       </div>
       ${unplaced.length ? `<p class="small muted">Not placed and not off: ${unplaced.map((t) => esc(t.name)).join(", ")}</p>` : ""}`;
   }
@@ -563,13 +597,28 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   }
 
   /* ================= supervisor ================= */
-  function supPrepare() {
+  function engPrepare() {
+    const ss = sups(); if (!ss.length) return '<p class="empty">Add a supervisor first.</p>';
+    if (!ui.prepSup || !ss.some((u) => u.id === ui.prepSup)) ui.prepSup = (ss.find((u) => onLeave(u.id, TODAY())) || ss[0]).id;
+    return prepView(ui.prepSup, true);
+  }
+  function supPrepare() { return prepView(viewer, false); }
+  function prepView(supId, eng) {
     ui.prepDate = ui.prepDate || addDays(TODAY(), 1);
-    if (!ui.draft || ui.draft.date !== ui.prepDate) ui.draft = newDraft(viewer, ui.prepDate);
+    if (eng && ui.prepDate < TODAY()) ui.prepDate = TODAY();
+    if (!ui.draft || ui.draft.date !== ui.prepDate || ui.draft.sup !== supId) ui.draft = newDraft(supId, ui.prepDate);
     const r = ui.draft; const errs = validate(r);
     const late = localDT(new Date()) > addDays(r.date, -1) + "T18:00";
-    const locked = r.status === "submitted" || r.status === "approved";
+    const locked = !eng && (r.status === "submitted" || r.status === "approved");
     const status = { draft: ["", "Draft"], submitted: ["amber", "Waiting for Engineer"], approved: ["green", "Approved"] }[r.status] || ["", "Draft"];
+    const supPick = eng ? `<label class="field"><span>Team (supervisor)</span><select id="prepSup">${sups().map((u) => `<option value="${u.id}" ${u.id === supId ? "selected" : ""}>${esc(u.name)}${onLeave(u.id, TODAY()) ? " · on leave" : ""}</option>`).join("")}</select></label>` : "";
+    if (eng) return `<div class="stack">
+      <div class="row between"><div><h2>Roster for ${fmtD(r.date, { weekday: "long", day: "numeric", month: "long" })}</h2>
+        <p class="small muted">${onLeave(supId, r.date) ? esc(nm(supId)) + " is on " + esc(leaveName(supId, r.date).toLowerCase()) + ". " : ""}You prepare and publish this roster directly; no approval step.${r.prefilledFrom && r.status !== "approved" ? ` Pre-filled from ${fmtD(r.prefilledFrom)}.` : ""}${r.status === "approved" ? " Already published – changes are re-published." : ""}</p></div>
+        <div class="row">${supPick}<label class="field"><span>Roster date</span><input type="date" id="prepDate" min="${TODAY()}" value="${ui.prepDate}"></label><span class="pill ${status[0]}">${r.status === "approved" ? "Published" : status[1]}</span></div></div>
+      <div class="card" id="supEditor">${editorHTML(r, "s")}</div>
+      ${errs.length ? `<div class="errs"><b>Fix before publishing</b><ul>${errs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>` : `<div class="ok">All mandatory duties are filled.</div>`}
+      <div class="row"><button class="btn go" data-act="engPublish" ${errs.length ? "disabled" : ""}>${r.status === "approved" ? "Re-publish roster" : "Publish roster"}</button></div></div>`;
     return `<div class="stack">
       <div class="row between"><div><h2>Roster for ${fmtD(r.date, { weekday: "long", day: "numeric", month: "long" })}</h2>
         <p class="small ${late && !locked ? "err" : "muted"}">${late ? "Deadline passed (18:00 " + fmtD(addDays(r.date, -1)) + "). It will be marked late." : "Submit before 18:00 " + fmtD(addDays(r.date, -1)) + "."}${r.prefilledFrom && !locked ? ` Pre-filled from ${fmtD(r.prefilledFrom)}; change only what is different.` : ""}</p></div>
@@ -637,6 +686,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         <div class="tile"><b>${onDutyNow}</b><span>On duty now</span></div>
         <div class="tile${loc ? " alert" : ""}"><b>${loc}</b><span>Wrong-location alerts (7 days)</span></div>
         <div class="tile"><b>${S.sites.length}</b><span>Sites · ${S.sites.filter((s) => s.lat != null).length} with GPS</span></div></div>
+      ${(() => { const ol = S.users.filter((u) => u.role !== "engineer" && onLeave(u.id, TODAY())); return ol.length ? `<div class="note"><b>On leave today:</b> ${ol.map((u) => esc(u.name) + " (" + esc(leaveName(u.id, TODAY())) + (u.role === "supervisor" ? ", supervisor – you are covering" : "") + ")").join(", ")}</div>` : ""; })()}
       ${pendR ? `<div class="note">${pendR} roster${pendR > 1 ? "s" : ""} submitted for approval. <button class="btn sm primary" data-goto="approvals">Review</button></div>` : ""}
       <div class="cols2"><section class="card"><h2>Today's duty status</h2>${S.users.filter((u) => u.role === "supervisor" || u.role === "technician").map((t) => {
         const a = myAssignment(t.id, TODAY()); const d = t.role === "supervisor" ? dutyOf(t.id, TODAY()) : openDutyOf(t.id);
@@ -653,8 +703,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const lv = S.leaves.filter((l) => l.status === "pending_eng");
     const em = S.emergencies.filter((e) => e.status === "pending_eng");
     const dv = S.users.filter((u) => u.device === "pending");
-    const jb = S.jobs.filter((j) => j.status === "pending_eng");
-    return `<div class="stack">
+    const jb = S.jobs.filter((j) => j.status === "pending_eng" || (j.status === "pending_sup" && supAwayOf(j.assignee)));
+    lv.push(...S.leaves.filter((l) => l.status === "pending_sup" && supAwayOf(l.tech)));
+    em.push(...S.emergencies.filter((e) => e.status === "pending_sup" && supAwayOf(e.tech)));
+    const away = sups().filter((u) => onLeave(u.id, TODAY()));
+    return `<div class="stack">${away.length ? `<div class="note">${away.map((u) => esc(u.name)).join(", ")} on ${esc(leaveName(away[0].id, TODAY()).toLowerCase())} today. Requests from ${away.length > 1 ? "their" : "his"} team come straight to you, and you can prepare the roster in <b>Prepare roster</b>.</div>` : ""}
       <section class="card"><h2>Rosters</h2>${rs.length ? rs.map((r0) => { const r = ui.engEdit[r0.key]; const errs = validate(r);
         return `<div class="item"><div class="row between"><b>${esc(nm(r.sup))} · ${fmtD(r.date, { weekday: "long", day: "numeric", month: "short" })}</b><span class="row">${r0.late ? '<span class="pill red">Late</span>' : ""}<span class="pill amber">Submitted</span></span></div>
           <p class="small muted">You can change names below before approving.</p>
@@ -667,12 +720,23 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         <section class="card"><h2>Leave requests</h2>${lv.length ? lv.map((l) => leaveItem(l, "eng")).join("") : '<p class="empty">Nothing waiting.</p>'}</section>
         <section class="card"><h2>Emergency duty</h2>${em.length ? em.map((e) => emItem(e, "eng")).join("") : '<p class="empty">Nothing waiting.</p>'}</section>
       </div>
+      ${siteLocCard()}
       <section class="card"><h2>New phone logins</h2>${dv.length ? dv.map((u) => `<div class="visit"><span><b>${esc(u.name)}</b><br><span class="small muted">${u.role === "engineer" ? "Your second device (laptop or phone)" : "Tried to log in from a new phone"}</span></span><span class="row"><button class="btn sm go" data-act="devOk" data-id="${u.id}">Approve phone</button><button class="btn sm danger" data-act="devNo" data-id="${u.id}">Reject</button></span></div>`).join("") : '<p class="empty">No phone requests.</p>'}</section></div>`;
+  }
+  function leaveCard() {
+    const people = S.users.filter((u) => u.role !== "engineer");
+    const cur = S.leaves.filter((l) => l.status === "approved" && l.dates[l.dates.length - 1] >= TODAY()).sort((a, b) => a.dates[0].localeCompare(b.dates[0]));
+    return `<section class="card"><h2>Annual leave &amp; other leave</h2><p class="small muted">Saved straight away. The person cannot be selected in the roster on those days and shows as on leave. When a supervisor is on leave, his team's requests come to you and you prepare the roster.</p>
+      <form class="form-inline" id="fLeaveSet"><label class="field"><span>Person</span><select id="lsWho" required><option value="">Select</option><optgroup label="Supervisors">${sups().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</optgroup><optgroup label="Technicians">${techs().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</optgroup></select></label>
+        <label class="field"><span>Type</span><select id="lsKind"><option>Annual leave</option><option>Sick leave</option><option>Emergency leave</option><option>Other leave</option></select></label>
+        <label class="field"><span>From</span><input type="date" id="lsFrom" required></label><label class="field"><span>To</span><input type="date" id="lsTo" required></label>
+        <label class="field"><span>Note (optional)</span><input id="lsNote" placeholder="e.g. Ticket 12 Nov"></label><button class="btn primary">Save leave</button></form>
+      ${cur.length ? `<div class="tablewrap"><table><thead><tr><th>Name</th><th>Type</th><th>From</th><th>To</th><th class="num">Days</th><th></th></tr></thead><tbody>${cur.map((l) => `<tr><td><b>${esc(nm(l.tech))}</b>${people.find((u) => u.id === l.tech)?.role === "supervisor" ? ' <span class="pill blue">Supervisor</span>' : ""}</td><td>${esc(l.reason || "Leave")}</td><td>${fmtD(l.dates[0])}</td><td>${fmtD(l.dates[l.dates.length - 1])}</td><td class="num">${l.dates.length}</td><td><button class="btn sm danger" data-act="leaveCancel" data-id="${l.id}">${l.dates[0] < TODAY() ? "End from today" : "Cancel"}</button></td></tr>`).join("")}</tbody></table></div>` : '<p class="empty">No current or upcoming leave.</p>'}</section>`;
   }
   function engTeam() {
     const ss = sups();
     const people = S.users.filter((u) => u.role !== "engineer");
-    return `<div class="stack">
+    return `<div class="stack">${leaveCard()}
       <section class="card"><h2>People</h2>
         <div class="tablewrap"><table><thead><tr><th>Name</th><th>Role</th><th>Supervisor</th><th>Mobile</th><th>PIN</th><th>Phone</th><th>Alerts</th><th></th></tr></thead><tbody>
         ${[...S.users.filter((u) => u.role === "engineer"), ...people].map((t) => `<tr><td><b>${esc(t.name)}</b></td><td>${t.role === "technician" ? "Technician" : t.role === "supervisor" ? "Supervisor" : "Engineer"}</td>
@@ -707,7 +771,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
           <td><input type="checkbox" data-slotf="mandatory|${s.id}" ${s.mandatory ? "checked" : ""} aria-label="Mandatory"></td><td class="num">${s.sites.length}</td></tr>`).join("")}
         </tbody></table></div>
         <div class="cols2"><form class="form-inline" id="fZone"><label class="field"><span>New zone</span><input id="nzName" required placeholder="e.g. Zone 4"></label><button class="btn">Add zone</button></form>
-        <form class="form-inline" id="fSlot"><label class="field"><span>New slot</span><input id="nslName" required placeholder="e.g. Technician 7"></label><label class="field"><span>Tag</span><input id="nslTag" placeholder="e.g. Al Ain"></label><label class="field"><span>Zone</span><select id="nslZone">${S.zones.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("")}</select></label><button class="btn">Add slot</button></form></div></section>
+        <form class="form-inline" id="fSlot"><label class="field"><span>Zone</span><select id="nslZone">${S.zones.map((z) => `<option value="${z.id}">${esc(z.name)}</option>`).join("")}</select></label><label class="field"><span>Shift</span><select id="nslShift"><option value="Day">Day technician</option><option value="Night">Night shift technician</option></select></label><label class="field"><span>Supervisor</span><select id="nslSup">${ss.map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select></label><label class="field"><span>Name (optional)</span><input id="nslName" placeholder="Auto: next number"></label><label class="field"><span>Tag (optional)</span><input id="nslTag" placeholder="e.g. Al Ain"></label><button class="btn">Add technician slot</button></form></div>
+        <p class="small muted">Leave the name blank and it is numbered automatically (e.g. Technician 7, or Night shift 2 – Zone 1). A night slot starts with the zone's day sites as its own; the night technician can still mark any site as visited.</p></section>
       <section class="card"><h2>Sites</h2><p class="small muted">Tick which slot covers each site. To set GPS, stand at the site and tap 📍, or type the coordinates.</p>
         <div class="tablewrap"><table><thead><tr><th>Site</th><th>Area</th>${S.slots.map((s) => `<th title="${esc(s.name)}">${esc(s.tag || s.name)}</th>`).join("")}<th>Latitude</th><th>Longitude</th><th></th></tr></thead><tbody>
         ${S.sites.map((x) => `<tr><td><b>${esc(x.name)}</b></td><td class="small">${esc(x.area)}</td>${S.slots.map((s) => `<td><input type="checkbox" data-cov="${s.id}|${x.id}" ${s.sites.includes(x.id) ? "checked" : ""} aria-label="${esc(s.name)} covers ${esc(x.name)}"></td>`).join("")}
@@ -738,7 +803,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       tH += c.dutyH; tE += c.emH; tO += c.ot; tS += c.d ? c.covN : 0; tK += c.km;
       const wd = c.d ? (c.d.work || []).map((w) => `${site(w.site)?.name}: ${w.desc}`).join("; ") : "";
       const sl = slotOf(c.d);
-      rows.push(`<tr class="${c.d ? "" : "off"}"><td class="mono">${fmtD(date, { day: "2-digit", month: "short" })}</td><td>${parse(date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td>${status}</td><td>${sl ? sl.shift : ""}</td><td>${sl ? esc(sl.tag || sl.name) + (sl.zone ? " · " + esc(zone(sl.zone)?.name) : "") : ""}</td><td class="num">${c.d?.start || ""}</td><td class="num">${c.d?.end || (c.d ? "open" : "")}</td><td class="num">${c.dutyH ? fmtH(c.dutyH) : ""}</td><td class="num">${c.emH ? fmtH(c.emH) : ""}</td><td class="num">${c.ot ? fmtH(c.ot) : ""}</td><td>${c.d ? (!drove(c.d) ? '<span class="pill">Passenger</span>' : '<span class="pill blue">Driver</span>') : ""}</td><td class="num">${c.d && drove(c.d) ? (c.d.end ? c.km : "open") : ""}</td><td class="num">${c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : ""}</td><td class="wd">${esc(wd)}</td></tr>`);
+      rows.push(`<tr class="${c.d ? "" : "off"}"><td class="mono">${fmtD(date, { day: "2-digit", month: "short" })}</td><td>${parse(date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td>${status}</td><td>${sl ? sl.shift : ""}</td><td>${sl ? esc(sl.tag || sl.name) + (sl.zone ? " · " + esc(zone(sl.zone)?.name) : "") : ""}</td><td class="num">${c.d?.start || ""}</td><td class="num">${c.d?.end || (c.d ? "open" : "")}</td><td class="num">${c.dutyH ? fmtH(c.dutyH) : ""}</td><td class="num">${c.emH ? fmtH(c.emH) : ""}</td><td class="num">${c.ot ? fmtH(c.ot) : ""}</td><td>${c.d ? (!drove(c.d) ? '<span class="pill">Passenger</span>' : '<span class="pill blue">Driver</span>') : ""}</td><td class="num">${c.d && drove(c.d) ? (c.d.end ? c.km : "open") : ""}</td><td class="num">${c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) + (c.extra ? " +" + c.extra : "") : ""}</td><td class="wd">${esc(wd)}</td></tr>`);
     }
     return `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th>Status</th><th>Shift</th><th>Area · Zone</th><th class="num">Start</th><th class="num">Finish</th><th class="num">Hours</th><th class="num">Emerg.</th><th class="num">OT</th><th>Car</th><th class="num">Km</th><th class="num">Sites</th><th>Work done</th></tr></thead>
       <tbody>${rows.reverse().join("")}</tbody><tfoot><tr><td colspan="3">${on} duty day(s)</td><td colspan="4"></td><td class="num">${fmtH(tH)}</td><td class="num">${fmtH(tE)}</td><td class="num">${fmtH(tO)}</td><td></td><td class="num">${tK}</td><td class="num">${tS}</td><td></td></tr></tfoot></table></div>
@@ -780,12 +845,12 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   function kpiTableHTML(list, month) {
     const rows = teamKpi(list, month);
     return `<div class="tablewrap"><table><thead><tr><th>Technician</th><th>Score</th><th>Site visits</th><th>Job closure</th><th class="num">Km driven</th><th class="num">Driving days</th><th class="num">Work entries</th><th class="num">Duty days</th><th class="num">OT h</th><th class="num">Wrong loc.</th></tr></thead><tbody>
-      ${rows.map(({ t, k, score }) => { const r = rating(score); return `<tr><td><b>${esc(t.name)}</b></td><td>${score == null ? '<span class="muted">—</span>' : `<span class="mono">${score}</span> <span class="pill ${r[0]}">${r[1]}</span>`}</td><td><span class="row" style="gap:8px;flex-wrap:nowrap">${bar(k.coverage)}<span class="mono">${Math.round(k.coverage * 100)}%</span></span></td><td>${k.jobRate == null ? '<span class="muted small">No jobs</span>' : `<span class="row" style="gap:8px;flex-wrap:nowrap">${bar(k.jobRate, "--amber")}<span class="mono">${k.jobsDone}/${k.jobsTotal}</span></span>`}</td><td class="num">${k.km}</td><td class="num">${k.drivingDays}</td><td class="num">${k.workEntries}</td><td class="num">${k.days}</td><td class="num">${fmtH(k.ot)}</td><td class="num">${k.wrong ? `<span class="pill red">${k.wrong}</span>` : "0"}</td></tr>`; }).join("")}
+      ${rows.map((row) => { const { t, k, score } = row; const r = rating(score); return `<tr><td><b>${esc(t.name)}</b><br><span class="small muted">${esc(kpiCalc(row))}</span></td><td>${score == null ? '<span class="muted">—</span>' : `<span class="mono">${score}</span> <span class="pill ${r[0]}">${r[1]}</span>`}</td><td><span class="row" style="gap:8px;flex-wrap:nowrap">${bar(k.coverage)}<span class="mono">${k.covN}/${k.covT}</span></span></td><td>${k.jobRate == null ? '<span class="muted small">No jobs</span>' : `<span class="row" style="gap:8px;flex-wrap:nowrap">${bar(k.jobRate, "--amber")}<span class="mono">${k.jobsDone}/${k.jobsTotal}</span></span>`}</td><td class="num">${k.km}</td><td class="num">${k.drivingDays}</td><td class="num">${k.workEntries}</td><td class="num">${k.days}</td><td class="num">${fmtH(k.ot)}</td><td class="num">${k.wrong ? `<span class="pill red">${k.wrong}</span>` : "0"}</td></tr>`; }).join("")}
       </tbody></table></div>${KPI_NOTE()}`;
   }
   function engKpi() {
-    ui.kpiMonth = ui.kpiMonth || TODAY().slice(0, 7);
-    return `<div class="stack"><div class="row between"><h2>KPI</h2><label class="field"><span>Month</span><input type="month" id="kpiMonth" value="${ui.kpiMonth}" max="${TODAY().slice(0, 7)}"></label></div>
+    ui.kpiMonth = ui.kpiMonth || "all";
+    return `<div class="stack"><div class="row between"><div><h2>KPI</h2><p class="small muted">${perLabel(ui.kpiMonth)}</p></div><label class="field"><span>Period</span><select id="kpiMonth">${periodOptions(ui.kpiMonth)}</select></label></div>
       <section class="card">${supKpiHTML(sups(), ui.kpiMonth, true)}</section>
       <section class="card"><h3>Technicians</h3>${kpiTableHTML(techs(), ui.kpiMonth)}</section>
       <form class="card" id="fKpiSet"><h3>KPI settings</h3><div class="form-inline">
@@ -818,6 +883,62 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       ${j.note ? `<div class="small"><b>Done:</b> ${esc(j.note)}</div>` : ""}
       ${j.returnComment && j.status === "open" ? `<div class="errs">Returned: ${esc(j.returnComment)}</div>` : ""}${j.status === "rejected" ? `<div class="errs">Not accepted: ${esc(j.returnComment)}</div>` : ""}${act}</div>`;
   }
+  /* ================= site info (contact + location) ================= */
+  const mapsUrl = (x) => x.mapLink || (x.lat != null && x.lng != null ? `https://www.google.com/maps?q=${x.lat},${x.lng}` : "");
+  function siteGroupOf(id) { const s = S.slots.find((q) => q.shift !== "Night" && q.sites.includes(id)); return s ? (s.tag || s.name) : "Other"; }
+  function siteInfoView() {
+    const q = (ui.siteQ || "").toLowerCase(); const isEng = me().role === "engineer";
+    const list = S.sites; const sq = (x) => (x.name + " " + x.area + " " + siteGroupOf(x.id) + " " + (x.contactName || "")).toLowerCase();
+    const pend = (id) => (S.siteUpdates || []).find((u) => u.site === id && u.status === "pending");
+    return `<div class="stack"><div class="row between"><div><h2>Site info</h2><p class="small muted">Contact details are saved straight away. ${isEng ? "Location details you enter are saved straight away." : "Location changes go to the Engineer for approval."}</p></div>
+      <label class="field"><span>Search</span><input id="siteQ" value="${esc(ui.siteQ || "")}" placeholder="Site, area or contact"></label></div>
+      ${list.map((x) => { const m = mapsUrl(x); const pu = pend(x.id);
+        const head = `<div class="row between"><span><b>${esc(x.name)}</b> <span class="small muted">${esc(x.area)} · ${esc(siteGroupOf(x.id))}</span></span>${ui.siteEdit === x.id ? "" : `<button class="btn sm" data-act="siteEdit" data-id="${x.id}">Edit</button>`}</div>`;
+        if (ui.siteEdit !== x.id) return `<div class="card" data-sq="${esc(sq(x))}" ${q && !sq(x).includes(q) ? "hidden" : ""}>${head}
+          <div class="kv"><div><span class="label">Contact</span><b>${x.contactName ? esc(x.contactName) : '<span class="muted">—</span>'}</b>${x.contactPhone ? `<br><a class="mono" href="tel:${esc(x.contactPhone.replace(/[^+\d]/g, ""))}">${esc(x.contactPhone)}</a>` : ""}${x.contactNote ? `<br><span class="small">${esc(x.contactNote)}</span>` : ""}</div>
+            <div><span class="label">Location</span>${x.address ? `<span class="small">${esc(x.address)}</span><br>` : ""}${m ? `<a href="${esc(m)}" target="_blank" rel="noopener">Open in Maps</a>` : '<span class="muted small">Not set</span>'}${x.lat != null ? ` <span class="pill green">GPS set</span>` : ""}</div></div>
+          ${pu ? `<p class="small"><span class="pill amber">Location change waiting for Engineer</span> from ${esc(nm(pu.by))}</p>` : ""}
+          ${x.infoBy ? `<p class="small muted">Contact updated by ${esc(nm(x.infoBy))} · ${dt(x.infoAt)}</p>` : ""}</div>`;
+        return `<div class="card">${head}
+          <form id="fSiteInfo" data-id="${x.id}"><h3>Contact details</h3><div class="grid2"><label class="field"><span>Contact person</span><input id="siName" value="${esc(x.contactName || "")}" placeholder="Name / position"></label><label class="field"><span>Phone</span><input id="siPhone" inputmode="tel" value="${esc(x.contactPhone || "")}" placeholder="+971 5x xxx xxxx"></label><label class="field full"><span>Notes</span><input id="siNote" value="${esc(x.contactNote || "")}" placeholder="e.g. Gate pass needed, call security first"></label></div><button class="btn primary">Save contact</button></form>
+          <form id="fSiteLoc" data-id="${x.id}" style="margin-top:14px"><h3>Location details</h3><div class="grid2"><label class="field full"><span>Address / directions</span><input id="slAddr" value="${esc(x.address || "")}" placeholder="e.g. Plot 12, Street 5, behind Al Ghurair"></label><label class="field full"><span>Google Maps link</span><input id="slLink" value="${esc(x.mapLink || "")}" placeholder="https://maps.app.goo.gl/..."></label>
+            <label class="field"><span>Latitude</span><input id="slLat" class="mono" value="${x.lat ?? ""}" placeholder="25.0xxxx"></label><label class="field"><span>Longitude</span><input id="slLng" class="mono" value="${x.lng ?? ""}" placeholder="55.0xxxx"></label>${isEng ? "" : `<label class="field full"><span>Note for Engineer (optional)</span><input id="slNote"></label>`}</div>
+            <div class="row"><button type="button" class="btn" data-act="slHere">📍 Use my location</button><button class="btn primary">${isEng ? "Save location" : "Send for approval"}</button><button type="button" class="btn" data-act="siteEditClose">Close</button></div></form></div>`;
+      }).join("") || '<p class="empty">No sites match.</p>'}</div>`;
+  }
+  function siteLocCard() {
+    const pend = (S.siteUpdates || []).filter((u) => u.status === "pending");
+    return `<section class="card${pend.length ? " hl" : ""}"><h2>Site location updates${pend.length ? " (" + pend.length + ")" : ""}</h2>${pend.length ? pend.map((u) => { const x = site(u.site) || {};
+      return `<div class="item"><div class="row between"><b>${esc(x.name)}</b><span class="small muted">${esc(nm(u.by))} · ${dt(u.at)}</span></div>
+        <div class="small">${u.address ? "Address: " + esc(u.address) + "<br>" : ""}${u.mapLink ? `Map: <a href="${esc(u.mapLink)}" target="_blank" rel="noopener">open link</a><br>` : ""}${u.lat != null ? `GPS: <span class="mono">${u.lat}, ${u.lng}</span> · <a href="https://www.google.com/maps?q=${u.lat},${u.lng}" target="_blank" rel="noopener">check on map</a><br>` : ""}${u.note ? "Note: " + esc(u.note) : ""}</div>
+        <div class="form-inline"><input placeholder="Comment (needed to reject)" data-cmt="${u.id}" aria-label="Comment"><button class="btn sm go" data-act="locOk" data-id="${u.id}">Approve</button><button class="btn sm danger" data-act="locNo" data-id="${u.id}">Reject</button></div></div>`; }).join("") : '<p class="empty">No location updates waiting.</p>'}</section>`;
+  }
+
+  /* ================= site issues ================= */
+  const IST = { open: ["red", "Open"], in_progress: ["amber", "In progress"], closed: ["green", "Closed"] };
+  function issuesView() {
+    const isEng = me().role === "engineer";
+    const all = (S.issues || []).slice().sort((a, b) => (b.updatedAt || b.at).localeCompare(a.updatedAt || a.at));
+    const active = all.filter((i) => i.status !== "closed");
+    const shown = ui.issueFilter === "closed" ? all.filter((i) => i.status === "closed") : ui.issueFilter === "all" ? all : active;
+    const siteOpts = S.slots.filter((s) => s.shift !== "Night" && s.sites.length).map((s) => `<optgroup label="${esc(s.tag || s.name)}">${s.sites.map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>`).join("");
+    const item = (i) => { const st = IST[i.status] || ["", i.status]; const open = ui.issueOpen === i.id;
+      return `<div class="item"><div class="row between"><span><span class="mono muted">${esc(i.no)}</span> · <b>${esc(site(i.site)?.name || "Site")}</b> <span class="small muted">${esc(site(i.site)?.area || "")}</span></span><span class="pill ${st[0]}">${st[1]}</span></div>
+        <div>${esc(i.desc)}</div><div class="small muted">Reported by ${esc(nm(i.by))} · ${dt(i.at)} · ${(i.history || []).length - 1} update(s)</div>
+        <div><button class="btn sm" data-act="issueOpen" data-id="${i.id}">${open ? "Hide history" : "History & update"}</button></div>
+        ${open ? `<div class="stack" style="gap:6px;margin-top:8px">${(i.history || []).map((h) => `<div class="visit"><span class="small"><span class="mono muted">${dt(h.at)}</span> · <b>${esc(nm(h.by))}</b><br>${esc(h.text)}</span></div>`).join("")}
+          <div class="form-inline"><input data-iupd="${i.id}" placeholder="Add an update (what was found / done)" aria-label="Update"><button class="btn sm primary" data-act="issueNote" data-id="${i.id}">Add update</button></div>
+          ${isEng ? `<div class="form-inline"><label class="field"><span>Status</span><select data-istatus="${i.id}">${Object.keys(IST).map((k) => `<option value="${k}" ${k === i.status ? "selected" : ""}>${IST[k][1]}</option>`).join("")}</select></label><button class="btn sm go" data-act="issueStatus" data-id="${i.id}">Save status</button></div>` : ""}</div>` : ""}</div>`; };
+    const hist = all.length ? `<div class="tablewrap"><table><thead><tr><th>No.</th><th>Site</th><th>Description</th><th>Date</th><th>Reported by</th><th>Status</th></tr></thead><tbody>${all.map((i) => `<tr><td class="mono">${esc(i.no)}</td><td>${esc(site(i.site)?.name || "")}</td><td>${esc(i.desc)}</td><td class="mono">${dt(i.at)}</td><td>${esc(nm(i.by))}</td><td><span class="pill ${(IST[i.status] || [""])[0]}">${(IST[i.status] || ["", i.status])[1]}</span></td></tr>`).join("")}</tbody></table></div>` : '<p class="empty">No issues reported yet.</p>';
+    return `<div class="stack"><div class="cols2"><form class="card" id="fIssue"><h2>Report a site issue</h2><p class="small muted">Issues stay on record with date and time. Everyone can add updates; only the Engineer changes the status.</p>
+        <label class="field"><span>Site</span><select id="isSite" required><option value="">Select site</option>${siteOpts}</select></label>
+        <label class="field"><span>Description</span><textarea id="isDesc" required placeholder="e.g. Dispenser hose leaking at coupling, temporary clamp fitted"></textarea></label>
+        <button class="btn primary">Report issue</button></form>
+      <section class="card"><div class="row between"><h2>Issues</h2><select id="issueFilter" aria-label="Filter"><option value="active" ${ui.issueFilter === "active" ? "selected" : ""}>Open & in progress (${active.length})</option><option value="closed" ${ui.issueFilter === "closed" ? "selected" : ""}>Closed</option><option value="all" ${ui.issueFilter === "all" ? "selected" : ""}>All</option></select></div>
+        ${shown.length ? shown.map(item).join("") : '<p class="empty">No issues here.</p>'}</section></div>
+      <section class="card"><h2>History</h2>${hist}</section></div>`;
+  }
+
   /* job requests */
   const engReqs = () => S.jobs.filter((j) => j.status === "requested");
   const supReqs = (sid) => { const mine = techs(sid).map((t) => t.id); return S.jobs.filter((j) => j.status === "requested" && mine.includes(j.by)); };
@@ -859,7 +980,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const ids = people.map((p) => p.id);
     let list = S.jobs.filter((j) => isEng || j.by === viewer || ids.includes(j.assignee)).sort((a, b) => b.created.localeCompare(a.created));
     if (ui.jobFilter === "active") list = list.filter((j) => j.status !== "closed" && j.status !== "rejected"); else if (ui.jobFilter === "closed") list = list.filter((j) => j.status === "closed");
-    const grp = (label, arr) => arr.length ? `<optgroup label="${label}">${arr.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join("")}</optgroup>` : "";
+    const grp = (label, arr) => arr.length ? `<optgroup label="${label}">${arr.map((p) => `<option value="${p.id}">${esc(p.name)}${onLeave(p.id, TODAY()) ? " (on leave)" : ""}</option>`).join("")}</optgroup>` : "";
     const slotsForSites = isEng ? S.slots : supSlots(viewer);
     return `<div class="cols2"><form class="card" id="fJob"><h2>Assign a job</h2>
         <label class="field"><span>Assign to</span><select id="jbWho" required><option value="">Select person</option>${isEng ? grp("Supervisors", sups()) : ""}${grp("Technicians", isEng ? techs() : techs(viewer))}</select></label>
@@ -966,7 +1087,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   chatLoop();
 
   /* ================= notifications ================= */
-  const NT = { msg: ["MSG", "New message"], roster: ["RST", "Roster"], device: ["DEV", "New device"], location: ["LOC", "Wrong location"], approval: ["APR", "Approval needed"], job: ["JOB", "New job assigned"] };
+  const NT = { issue: ["ISS", "Site issue"], msg: ["MSG", "New message"], roster: ["RST", "Roster"], device: ["DEV", "New device"], location: ["LOC", "Wrong location"], approval: ["APR", "Approval needed"], job: ["JOB", "New job assigned"] };
   let audioCtx = null;
   function chime() {
     try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = "sine"; o.frequency.setValueAtTime(880, audioCtx.currentTime); o.frequency.setValueAtTime(1320, audioCtx.currentTime + 0.12); g.gain.setValueAtTime(0.0001, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.22, audioCtx.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.35); o.connect(g).connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime + 0.4); } catch (e) {}
@@ -1074,7 +1195,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (shownSlot) hero = `<div class="phone-hero"><div class="row between"><span class="pill">${fmtD(d ? d.date : TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span>${a && a.fallback ? `<span class="pill">Last approved roster</span>` : ""}</div>
       <h2>${esc(shownSlot.name)} ${tagHTML(shownSlot)}</h2><p class="sub">${shownSlot.zone ? esc(zone(shownSlot.zone)?.name) + " · " : ""}${shownSlot.shift} shift ${shownSlot.shift === "Night" ? "19:00–07:00" : "07:00–19:00"} · ${shownSlot.sites.length} sites</p>
       ${a && a.monitoring ? '<p><span class="pill" style="background:#69BD45;color:#0B2E12">Monitoring in-charge today</span></p>' : ""}</div>`;
-    else hero = `<div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>${a?.type === "off" ? "Off duty today" : a?.type === "leave" ? "On leave today" : "Not on today's roster"}</h2><p class="sub">You can still record emergency duty from the Emergency tab.</p></div>`;
+    else hero = `<div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>${a?.type === "off" ? "Off duty today" : a?.type === "leave" ? "On " + esc(leaveName(viewer, TODAY()).toLowerCase()) + " today" : "Not on today's roster"}</h2><p class="sub">You can still record emergency duty from the Emergency tab.</p></div>`;
     hero = pushCard() + hero + openJobsCard();
     if (!shownSlot) return `<div class="stack narrow">${hero}</div>`;
     if (!d) {
@@ -1097,8 +1218,19 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     return `<div class="stack narrow">${hero}
       <div class="card"><div class="kv"><div><span class="label">Started</span><b class="mono">${d.start}</b></div><div><span class="label">Vehicle</span><b class="mono">${esc(d.vehicle)}</b></div><div><span class="label">${!d.driver ? "Car" : "Opening km"}</span><b class="mono">${!d.driver ? "Passenger" : d.kmStart}</b></div><div><span class="label">Visited</span><b class="mono">${c.covN}/${sl.sites.length}</b></div></div></div>
       <div class="card"><h2>Site check-in</h2><p class="small muted">${QR() ? `Scan the QR code fixed at the site. Your location must be within ${S.radius} m of the site.` : "When you reach a site, tap ✓ Visited (tap twice to confirm). The time is recorded."}</p><div>${sitesHTML}</div></div>
+      ${sl.shift === "Night" ? nightOthersCard(d, sl) : ""}
       ${d.end ? "" : carSwapCard(d)}
       ${workCard(d, sl, false)}${end}</div>`;
+  }
+  function nightOthersCard(d, sl) {
+    const vis = d.visits.filter((v) => !sl.sites.includes(v.site));
+    const done = new Set(vis.map((v) => v.site));
+    const groups = S.slots.filter((s) => s.shift !== "Night" && s.sites.some((x) => !sl.sites.includes(x) && !done.has(x)))
+      .map((s) => `<optgroup label="${esc(s.tag || s.name)}">${s.sites.filter((x) => !sl.sites.includes(x) && !done.has(x)).map((x) => `<option value="${x}">${esc(site(x)?.name)}</option>`).join("")}</optgroup>`).join("");
+    const loose = S.sites.filter((x) => !sl.sites.includes(x.id) && !done.has(x.id) && !S.slots.some((s) => s.shift !== "Night" && s.sites.includes(x.id)));
+    return `<div class="card"><h2>Other sites (night patrol)</h2><p class="small muted">On night shift you can visit any site. Choose the site, then tap ${QR() ? "Scan QR" : "✓ Visited"}.</p>
+      ${vis.map((v) => `<div class="visit"><span><b>${esc(site(v.site)?.name)}</b><br><span class="small muted">${esc(site(v.site)?.area)}</span></span><span class="done">✓ ${v.time}</span></div>`).join("")}
+      ${d.end ? (vis.length ? "" : '<p class="empty">No other sites visited.</p>') : `<div class="form-inline"><label class="field"><span>Site</span><select id="nightSite"><option value="">Select site</option>${groups}${loose.length ? `<optgroup label="Other">${loose.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join("")}</optgroup>` : ""}</select></label><button type="button" class="btn primary" data-act="nightVisit">${QR() ? "Scan QR" : "✓ Visited"}</button></div>`}</div>`;
   }
   function carSwapCard(d) {
     const info = d.cars > 1 ? `<p class="small muted">Car ${d.cars} today${d.kmPrev ? " · " + d.kmPrev + " km on earlier car(s)" : ""}.</p>` : "";
@@ -1148,20 +1280,22 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   }
   function techSheet() { return `<div class="stack"><div class="row between"><h2>My timesheet · ${parse(TODAY()).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</h2></div>${sheetTable(viewer, TODAY().slice(0, 7))}</div>`; }
   function techKpi() {
-    const month = TODAY().slice(0, 7); const row = teamKpi([me()], month)[0]; const { k, score } = row; const r = rating(score);
-    const ds = S.duties.filter((d) => d.tech === viewer && d.date.slice(0, 7) === month && d.end).sort((a, b) => b.date.localeCompare(a.date));
+    const month = ui.kpiMonth || "all"; const R = perRange(month); const row = teamKpi([me()], month)[0]; const { k, score } = row; const r = rating(score);
+    const ds = S.duties.filter((d) => d.tech === viewer && inPer(d.date, R) && d.start).sort((a, b) => b.date.localeCompare(a.date));
     return `<div class="stack narrow">
-      <div class="card"><span class="label">My KPI · ${parse(TODAY()).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</span>
+      <label class="field"><span>Period</span><select id="kpiMonth">${periodOptions(month)}</select></label>
+      <div class="card"><span class="label">My KPI · ${perLabel(month)}</span>
         <div class="row"><span class="score">${score ?? "—"}</span><span class="pill ${r[0]}">${r[1]}</span></div>
         <div class="stack" style="gap:10px">
-          <div class="row between"><span>Site visits · ${S.kpiW.site}%</span><span class="row">${bar(k.coverage)}<b class="mono">${Math.round(k.coverage * 100)}%</b></span></div>
+          <div class="row between"><span>Site visits · ${S.kpiW.site}%</span><span class="row">${bar(k.coverage)}<b class="mono">${k.covN}/${k.covT} · ${Math.round(k.coverage * 100)}%</b></span></div>
           <div class="row between"><span>Job closure · ${S.kpiW.job}%</span><span class="row">${bar(k.jobRate ?? 0, "--amber")}<b class="mono">${k.jobRate == null ? "No jobs" : k.jobsDone + "/" + k.jobsTotal}</b></span></div>
           <div class="row between"><span>Driving · ${S.kpiW.drive}%</span><span class="row">${bar(row.kmScore, "--blue")}<b class="mono">${k.km} km</b></span></div>
         </div>
         <div class="kv"><div><span class="label">Duty days</span><b class="mono">${k.days}</b></div><div><span class="label">Driving days</span><b class="mono">${k.drivingDays}</b></div><div><span class="label">OT</span><b class="mono">${fmtH(k.ot)} h</b></div><div><span class="label">Wrong location</span><b class="mono">${k.wrong}</b></div></div>
+        <p class="small"><b>How your score is calculated:</b> ${esc(kpiCalc(row))}</p>
         ${KPI_NOTE()}</div>
-      <section class="card"><h2>Daily coverage</h2>${ds.length ? ds.map((d) => { const c = dayCalc(viewer, d.date); const sl = slotOf(d);
-        return `<div class="visit"><span><b>${fmtD(d.date)}</b> ${sl ? tagHTML(sl) : ""}<br><span class="small muted">${!drove(d) ? "Passenger" : c.km + " km"} · ${(d.work || []).length} work entr${(d.work || []).length === 1 ? "y" : "ies"}</span></span><span class="row">${bar(c.covT ? c.covN / c.covT : 0)}<span class="mono">${c.covN}/${c.covT}</span></span></div>`; }).join("") : '<p class="empty">No closed duties this month.</p>'}</section></div>`;
+      <section class="card"><h2>Daily site visits</h2>${ds.length ? ds.map((d) => { const c = dayCalc(viewer, d.date); const sl = slotOf(d);
+        return `<div class="visit"><span><b>${fmtD(d.date)}</b> ${sl ? tagHTML(sl) : ""}<br><span class="small muted">${!drove(d) ? "Passenger" : c.km + " km"} · ${(d.work || []).length} work entr${(d.work || []).length === 1 ? "y" : "ies"}</span></span><span class="row">${bar(c.covT ? c.covN / c.covT : 0)}<span class="mono">${c.covN}/${c.covT}</span></span></div>`; }).join("") : '<p class="empty">No duties in this period.</p>'}</section></div>`;
   }
 
   /* ================= QR scan + GPS ================= */
@@ -1222,7 +1356,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         const date = month + "-" + pad(i); if (date > TODAY()) break;
         const a = assignmentFor(id, date); const c = dayCalc(id, date); const sl = slotOf(c.d);
         tH += c.dutyH; tE += c.emH; tO += c.ot; tK += c.km; tS += c.covN;
-        rows.push([date, parse(date).toLocaleDateString("en-GB", { weekday: "long" }), c.d ? "On Duty" : a?.type === "leave" ? "Leave" : a?.type === "off" ? "Off Duty" : c.emH ? "Emergency" : "", sl ? sl.shift : "", sl ? (sl.tag || sl.name) + (sl.zone ? " · " + (zone(sl.zone)?.name || "") : "") : "", c.d?.start || "", c.d?.end || "", c.dutyH ? r2(c.dutyH) : "", c.emH ? r2(c.emH) : "", c.ot ? r2(c.ot) : "", c.d ? (drove(c.d) ? "Driver" : "Passenger") : "", c.d && drove(c.d) && c.d.end ? c.km : "", c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) : "", c.d ? (c.d.work || []).map((w) => (site(w.site)?.name || "") + ": " + w.desc).join("; ") : ""]);
+        rows.push([date, parse(date).toLocaleDateString("en-GB", { weekday: "long" }), c.d ? "On Duty" : a?.type === "leave" ? "Leave" : a?.type === "off" ? "Off Duty" : c.emH ? "Emergency" : "", sl ? sl.shift : "", sl ? (sl.tag || sl.name) + (sl.zone ? " · " + (zone(sl.zone)?.name || "") : "") : "", c.d?.start || "", c.d?.end || "", c.dutyH ? r2(c.dutyH) : "", c.emH ? r2(c.emH) : "", c.ot ? r2(c.ot) : "", c.d ? (drove(c.d) ? "Driver" : "Passenger") : "", c.d && drove(c.d) && c.d.end ? c.km : "", c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) + (c.extra ? " +" + c.extra : "") : "", c.d ? (c.d.work || []).map((w) => (site(w.site)?.name || "") + ": " + w.desc).join("; ") : ""]);
       }
       rows.push(["Total", "", "", "", "", "", "", r2(tH), r2(tE), r2(tO), "", tK, tS, ""]);
     }
@@ -1267,9 +1401,9 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     $("#whoBox").innerHTML = `${esc(u.name)}<span>${roleLabel}</span>`;
     $("#syncInfo").textContent = lastSync ? "Updated " + nowHM() : "Updating…";
     const views = {
-      engineer: { overview: engOverview, approvals: engApprovals, jobs: jobsAdmin, messages: messagesView, board: boardView, team: engTeam, sites: engSites, qr: engQr, timesheets: engTimesheets, kpi: engKpi, logs: engLogs },
-      supervisor: { today: techToday, prepare: supPrepare, jobs: jobsAdmin, approvals: supApprovals, messages: messagesView, board: boardView, team: () => `<div class="stack"><section class="card"><h2>My team</h2>${teamTable(techs(viewer))}</section><section class="card"><h2>KPI · ${parse(TODAY()).toLocaleDateString("en-GB", { month: "long" })}</h2>${supKpiHTML([u], TODAY().slice(0, 7), false)}<h3>My technicians</h3>${kpiTableHTML(techs(viewer), TODAY().slice(0, 7))}</section></div>` },
-      technician: { today: techToday, jobs: techJobs, messages: messagesView, emergency: techEmergency, leave: techLeave, mysheet: techSheet, mykpi: techKpi, board: boardView }
+      engineer: { issues: issuesView, siteinfo: siteInfoView, overview: engOverview, approvals: engApprovals, prepare: engPrepare, jobs: jobsAdmin, messages: messagesView, board: boardView, team: engTeam, sites: engSites, qr: engQr, timesheets: engTimesheets, kpi: engKpi, logs: engLogs },
+      supervisor: { issues: issuesView, siteinfo: siteInfoView, today: techToday, prepare: supPrepare, jobs: jobsAdmin, approvals: supApprovals, messages: messagesView, board: boardView, team: () => `<div class="stack"><section class="card"><h2>My team</h2>${teamTable(techs(viewer))}</section><section class="card"><div class="row between"><h2>KPI · ${perLabel(ui.kpiMonth || "all")}</h2><label class="field"><span>Period</span><select id="kpiMonth">${periodOptions(ui.kpiMonth || "all")}</select></label></div>${supKpiHTML([u], ui.kpiMonth || "all", false)}<h3>My technicians</h3>${kpiTableHTML(techs(viewer), ui.kpiMonth || "all")}</section></div>` },
+      technician: { issues: issuesView, siteinfo: siteInfoView, today: techToday, jobs: techJobs, messages: messagesView, emergency: techEmergency, leave: techLeave, mysheet: techSheet, mykpi: techKpi, board: boardView }
     }[u.role];
     const focus = document.activeElement && document.activeElement.id;
     const keep = $("#chatTxt") ? $("#chatTxt").value : "";
@@ -1284,9 +1418,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const t = e.target;
     if (t.id === "boardDate") { ui.boardDate = t.value || TODAY(); render(); return; }
     if (t.id === "prepDate") { ui.prepDate = t.value; ui.draft = null; render(); return; }
+    if (t.id === "prepSup") { ui.prepSup = t.value; ui.draft = null; render(); return; }
     if (t.id === "tsTech") { ui.tsTech = t.value; render(); return; }
     if (t.id === "tsMonth") { ui.tsMonth = t.value || TODAY().slice(0, 7); render(); return; }
-    if (t.id === "kpiMonth") { ui.kpiMonth = t.value || TODAY().slice(0, 7); render(); return; }
+    if (t.id === "issueFilter") { ui.issueFilter = t.value; render(); return; }
+    if (t.id === "kpiMonth") { ui.kpiMonth = t.value || "all"; render(); return; }
     if (t.id === "chatTo") { ui.chatTo = t.value; return; }
     if (t.id === "jobFilter") { ui.jobFilter = t.value; render(); return; }
     if (t.id === "qrSlot") { ui.qrSlot = t.value; render(); return; }
@@ -1305,6 +1441,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   });
   document.addEventListener("keydown", (e) => { if (e.target.id === "chatTxt" && e.key === "Enter" && !e.shiftKey && window.matchMedia("(min-width: 761px)").matches) { e.preventDefault(); $("#fChat").requestSubmit(); } });
   document.addEventListener("input", (e) => {
+    if (e.target.id === "siteQ") { ui.siteQ = e.target.value; const q = ui.siteQ.toLowerCase(); document.querySelectorAll("[data-sq]").forEach((c) => { c.hidden = !!q && !c.dataset.sq.includes(q); }); return; }
     if (e.target.id === "chatTxt") { e.target.style.height = "auto"; e.target.style.height = Math.min(120, e.target.scrollHeight) + "px"; }
     if (e.target.id === "deEnd" || e.target.id === "deKm") {
       const d = openDutyOf(viewer); if (!d) return;
@@ -1334,6 +1471,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "saveDraft": { const r = await api("saveRoster", { roster: ui.draft, submit: false }); if (r && r.ok) ui.draft = null; render(); return; }
       case "submitRoster": { if (validate(ui.draft).length) return; const r = await api("saveRoster", { roster: ui.draft, submit: true }); if (r && r.ok) ui.draft = null; render(); return; }
       case "recall": { const r = await api("recallRoster", { key: ui.draft.key }); if (r && r.ok) ui.draft = null; render(); return; }
+      case "engPublish": { const r = ui.draft; if (!r || validate(r).length) return; const res = await api("approveRoster", { roster: { key: r.date + "|" + r.sup, date: r.date, sup: r.sup, assign: r.assign, monitoring: r.monitoring, off: r.off } }); if (res && res.ok) ui.draft = null; render(); return; }
+      case "leaveCancel": if (!arm()) return; api("leaveCancel", { id }); return;
       case "approveRoster": { const r = ui.engEdit[b.dataset.key]; if (validate(r).length) return; const res = await api("approveRoster", { roster: { key: r.key, assign: r.assign, monitoring: r.monitoring, off: r.off } }); if (res && res.ok) delete ui.engEdit[r.key]; render(); return; }
       case "decide": { const ok = b.dataset.ok === "1"; const c = cmt(); if (!ok && !c) { toast("Add a comment to return it", true); return; } api("decide", { kind: b.dataset.kind, id, ok, comment: c }); return; }
       case "devOk": api("device", { id, ok: true }); return;
@@ -1351,6 +1490,15 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "supRemove": api("supRemoveSite", { site: id }); return;
       case "wkDel": api("delWork", { id }); return;
       case "jobDone": { const n = (document.querySelector(`[data-jnote="${id}"]`)?.value || "").trim(); if (!n) { toast("Write what was done", true); return; } api("jobComplete", { id, note: n }); return; }
+      case "nightVisit": { const sid = $("#nightSite")?.value; if (!sid) { toast("Choose the site first", true); return; } if (QR()) { openScan(sid); return; } if (!arm()) return; markVisited(sid); return; }
+      case "siteEdit": ui.siteEdit = id; render(); return;
+      case "siteEditClose": ui.siteEdit = null; render(); return;
+      case "slHere": { try { busy(true); const c = await getPosition(); busy(false); $("#slLat").value = c.latitude.toFixed(6); $("#slLng").value = c.longitude.toFixed(6); toast("Location filled (accuracy about " + Math.round(c.accuracy) + " m)"); } catch (err) { busy(false); toast(err.message, true); } return; }
+      case "locOk": api("siteLocDecide", { id, ok: true, comment: cmt() }); return;
+      case "locNo": { const c = cmt(); if (!c) { toast("Add a comment to reject", true); return; } api("siteLocDecide", { id, ok: false, comment: c }); return; }
+      case "issueOpen": ui.issueOpen = ui.issueOpen === id ? null : id; render(); return;
+      case "issueNote": { const v = (document.querySelector(`[data-iupd="${id}"]`)?.value || "").trim(); if (!v) { toast("Write the update", true); return; } api("issueUpdate", { id, text: v }); return; }
+      case "issueStatus": api("issueUpdate", { id, status: document.querySelector(`[data-istatus="${id}"]`).value }); return;
       case "carSwapOpen": ui.carSwap = true; render(); return;
       case "carSwapClose": ui.carSwap = false; render(); return;
       case "jobCancel": if (!arm()) return; api("jobCancel", { id }); return;
@@ -1379,6 +1527,14 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       if (!/^\d{5}$/.test(veh)) { toast("Vehicle number must be 5 digits.", true); return; }
       if (driver && $("#dsKm").value === "") { toast("Enter opening km.", true); return; }
       api("startDuty", { start: $("#dsStart").value, vehicle: veh, driver, coDriver: driver ? "" : $("#dsDrv").value, kmStart: driver ? +$("#dsKm").value : null });
+    } else if (f.id === "fSiteInfo") {
+      const r = await api("siteInfo", { site: f.dataset.id, contactName: $("#siName").value.trim(), contactPhone: $("#siPhone").value.trim(), contactNote: $("#siNote").value.trim() });
+      if (r && r.ok) { ui.siteEdit = null; render(); }
+    } else if (f.id === "fSiteLoc") {
+      const r = await api("siteLocReq", { site: f.dataset.id, address: $("#slAddr").value.trim(), mapLink: $("#slLink").value.trim(), lat: $("#slLat").value.trim(), lng: $("#slLng").value.trim(), note: $("#slNote") ? $("#slNote").value.trim() : "" });
+      if (r && r.ok) { ui.siteEdit = null; render(); }
+    } else if (f.id === "fIssue") {
+      const r = await api("issueAdd", { site: $("#isSite").value, desc: $("#isDesc").value.trim() }); if (r && r.ok) { ui.issueFilter = "active"; render(); }
     } else if (f.id === "fCar") {
       const veh = $("#csVeh").value.trim(); const driver = document.querySelector('input[name="csCar"]:checked').value === "drive";
       if (!/^\d{5}$/.test(veh)) { toast("Vehicle number must be 5 digits.", true); return; }
@@ -1420,8 +1576,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       api("userAdd", { name: $("#nuName").value.trim(), role: $("#nuRole").value, mobile: $("#nuMob").value.trim(), pin: $("#nuPin").value.trim(), sup: $("#nuSup").value });
     } else if (f.id === "fZone") {
       api("zoneAdd", { name: $("#nzName").value.trim() });
+    } else if (f.id === "fLeaveSet") {
+      if ($("#lsTo").value < $("#lsFrom").value) { toast("To date must be on or after the from date.", true); return; }
+      const r = await api("leaveSet", { who: $("#lsWho").value, kind: $("#lsKind").value, from: $("#lsFrom").value, to: $("#lsTo").value, note: $("#lsNote").value.trim() }); if (r && r.ok) f.reset();
     } else if (f.id === "fSlot") {
-      api("slotAdd", { name: $("#nslName").value.trim(), tag: $("#nslTag").value.trim(), zone: $("#nslZone").value });
+      api("slotAdd", { name: $("#nslName").value.trim(), tag: $("#nslTag").value.trim(), zone: $("#nslZone").value, shift: $("#nslShift").value, sup: $("#nslSup").value });
     } else if (f.id === "fSite") {
       api("siteAdd", { name: $("#nsiName").value.trim(), area: $("#nsiArea").value.trim(), slot: $("#nsiSlot").value });
     } else if (f.id === "fKpiSet") {
