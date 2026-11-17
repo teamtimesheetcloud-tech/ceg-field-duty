@@ -321,9 +321,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
 <div class="banner" id="banner" hidden></div>
 
 <script src="config.js"></script>
-<script src="lib/html5-qrcode.min.js"></script>
-<script src="lib/qrcode.min.js"></script>
-<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/html5-qrcode.min.js" onerror="var s=document.createElement('script');s.src=this.src.replace('/lib/','/');document.head.appendChild(s)"></script>
+<script src="lib/qrcode.min.js" onerror="var s=document.createElement('script');s.src=this.src.replace('/lib/','/');document.head.appendChild(s)"></script>
 <script>
 (function () {
   "use strict";
@@ -1529,7 +1528,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const bar = open ? `<div class="ok">This month is <b>open for editing</b>. Tap Edit (or Add) on a day, correct it, then tap <b>Finish editing</b> to lock it again. <button class="btn sm go" data-act="tsDone" data-id="${m}">Finish editing</button></div>`
       : lk.status === "requested" ? `<div class="note"><span class="pill amber">Edit requested</span> Waiting for the Engineer to unlock. Your reason: ${esc(lk.reason)}</div>`
       : `<form class="card" id="fTsReq"><div class="row between"><span><span class="pill">🔒 Locked</span> Need to correct a time or km?</span></div><div class="form-inline"><label class="field"><span>What needs correcting</span><input id="trReason" required placeholder="e.g. Forgot to end duty on 15 Nov, finished 19:00"></label><button class="btn primary">Request edit</button></div>${lk.by && lk.reason && lk.at ? `<p class="small muted">Last note from the Engineer: ${esc(lk.reason)}</p>` : ""}</form>`;
-    return `<div class="stack"><div class="row between"><h2>My timesheet</h2><label class="field"><span>Month</span><select id="mySheetMonth">${months.map((x) => `<option value="${x}" ${x === m ? "selected" : ""}>${parse(x + "-01").toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</option>`).join("")}</select></label></div>
+    return `<div class="stack"><div class="row between"><h2>My timesheet</h2><label class="field"><span>Month</span><select id="mySheetMonth">${months.map((x) => `<option value="${x}" ${x === m ? "selected" : ""}>${parse(x + "-01").toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</option>`).join("")}</select></label><button class="btn" data-act="xlsMine" data-id="${m}">Download Excel</button></div>
       ${bar}${open ? tsEditCard(viewer, m) : ""}${sheetTable(viewer, m, open)}${tsHistory(viewer, m)}</div>`;
   }
   function tsReqCard() {
@@ -1621,16 +1620,126 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const foot = [[], ["Submit By:", u.name, "", "Checked By:", nm(engId())], ["Comments:"]];
     return head.concat(rows, foot);
   }
-  function exportXls(ids, month) {
-    if (!window.XLSX) { toast("Excel library could not load. Check internet.", true); return; }
-    const wb = XLSX.utils.book_new();
-    ids.forEach((id) => {
-      const ws = XLSX.utils.aoa_to_sheet(sheetRowsFor(id, month));
-      ws["!cols"] = [{ wch: 12 }, { wch: 11 }, { wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 8 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 60 }];
-      XLSX.utils.book_append_sheet(wb, ws, (user(id).name || id).replace(/[\\/?*[\]:]/g, "").slice(0, 30));
-    });
-    XLSX.writeFile(wb, ids.length === 1 ? `Time sheet ${user(ids[0]).name} ${month}.xlsx` : `CEG Time sheets ${month}.xlsx`);
+  /* ---------- Excel export: company time sheet format (ExcelJS, loaded only when needed) ---------- */
+  let xlLoading = null;
+  function loadScript(src) { return new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = () => ok(); s.onerror = () => { s.remove(); no(new Error("load " + src)); }; document.head.appendChild(s); }); }
+  function loadExcel() {
+    if (window.ExcelJS) return Promise.resolve(true);
+    if (!xlLoading) xlLoading = loadScript("lib/exceljs.min.js").catch(() => loadScript("exceljs.min.js")).catch(() => loadScript("https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"))
+      .then(() => !!window.ExcelJS).catch(() => { xlLoading = null; return false; });
+    return xlLoading;
   }
+  function sheetDays(id, month) {
+    const u = user(id); const [y, m] = month.split("-").map(Number); const days = new Date(y, m, 0).getDate(); const out = [];
+    for (let i = 1; i <= days; i++) {
+      const date = month + "-" + pad(i); if (date > TODAY()) break;
+      const wd = parse(date).toLocaleDateString("en-GB", { weekday: "long" });
+      if ((S.appStart && date < S.appStart) || (date === TODAY() && !dutyOf(id, date))) { out.push({ date, wd, on: false, off: "", blank: true, start: "", end: "", hours: "", ot: "", remarks: date === TODAY() ? "" : "Before the app started" }); continue; }
+      if (u.role === "supervisor") {
+        const d = dutyOf(id, date); const n = d ? new Set(d.visits.map((v) => v.site)).size : 0; const sun = parse(date).getDay() === 0;
+        const rem = d && n ? "Site visits (" + n + "): " + [...d.visits].sort((a, b) => a.time.localeCompare(b.time)).map((v) => (site(v.site)?.name || "") + " " + v.time).join(", ") : "";
+        const work = d ? (d.work || []).map((w) => (site(w.site)?.name || "") + ": " + w.desc).join("; ") : "";
+        out.push({ date, wd, on: !onLeave(id, date) && !(sun && !n), off: onLeave(id, date) ? "Leave" : sun && !n ? "Off Duty" : "", start: "", end: "", hours: "", ot: "", remarks: [rem, work].filter(Boolean).join(" · ") });
+        continue;
+      }
+      const a = assignmentFor(id, date); const c = dayCalc(id, date); const sl = slotOf(c.d);
+      if (!c.d) {
+        const em = S.emergencies.filter((e) => e.tech === id && e.status === "approved" && e.start.slice(0, 10) === date);
+        out.push({ date, wd, on: !!c.emH, off: a?.type === "leave" ? leaveName(id, date) : c.emH ? "" : "Off Duty", start: "", end: "", hours: "", ot: c.emH ? r2(c.emH) : "", remarks: em.map((e) => "Emergency: " + (site(e.site)?.name || "") + " – " + e.desc).join("; ") });
+        continue;
+      }
+      const d = c.d; const night = sl && sl.shift === "Night";
+      const post = sl ? (d.role === "support" ? "Support – " : "") + (sl.tag || sl.name) + (night ? " night shift – all sites monitoring and patrolling" : " – site patrolling and routine inspection") : "";
+      const parts = [post];
+      if (c.covN || c.covT) parts.push("Sites visited " + (c.covT ? c.covN + "/" + c.covT : c.covN) + (c.extra ? " +" + c.extra : ""));
+      (d.work || []).forEach((w) => parts.push((site(w.site)?.name || "") + ": " + w.desc));
+      if (c.emH) parts.push("Emergency " + r2(c.emH) + " h");
+      if (drove(d) && c.km) parts.push("Km " + c.km);
+      if (d.note) parts.push(d.note);
+      out.push({ date, wd, on: true, off: "", start: d.start || "", end: d.end || "", hours: c.dutyH ? r2(c.dutyH) : "", ot: c.ot ? r2(c.ot) : "-", remarks: parts.filter(Boolean).join(" · ") });
+    }
+    return out;
+  }
+  function sheetLocation(id, month) {
+    const n = {}; S.duties.filter((d) => d.tech === id && d.date.slice(0, 7) === month).forEach((d) => { const sl = slotOf(d); if (!sl) return; const k = String(d.slot).startsWith("sup:") ? "All sites (supervisor)" : sl.tag || (sl.zone ? zone(sl.zone)?.name : "") || sl.name; n[k] = (n[k] || 0) + 1; });
+    const top = Object.keys(n).sort((a, b) => n[b] - n[a]); return top.length ? top.slice(0, 2).join(" / ") : "";
+  }
+  function fillSheet(wb, id, month) {
+    const u = user(id); const name = (u.name || id).replace(/[\\/?*[\]:]/g, "").slice(0, 30);
+    const ws = wb.addWorksheet(name, { pageSetup: { paperSize: 9, orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 1, margins: { left: 0.3, right: 0.3, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 } }, views: [{ showGridLines: false }] });
+    ws.columns = [20.5, 13, 13, 13, 13, 13, 13, 13, 85.8].map((w) => ({ width: w }));
+    const thin = { style: "thin" }, med = { style: "medium" }, box = { top: thin, left: thin, bottom: thin, right: thin };
+    const F = (sz, color, bold = true, name = "Arial") => ({ name, size: sz, bold, color: color ? { argb: color } : undefined });
+    const fill = (c) => ({ type: "pattern", pattern: "solid", fgColor: { argb: c } });
+    const C = { wrapText: true, horizontal: "center", vertical: "middle" };
+    const set = (ref, v, font, opt) => { const c = ws.getCell(ref); c.value = v; c.font = font || F(9); c.alignment = (opt && opt.align) || C; c.border = box; if (opt && opt.fill) c.fill = fill(opt.fill); if (opt && opt.fmt) c.numFmt = opt.fmt; return c; };
+    const frame = (r1, r2) => { for (let r = r1; r <= r2; r++) for (let k = 1; k <= 9; k++) { const c = ws.getRow(r).getCell(k); c.border = box; if (!c.font) c.font = F(9); } };
+    // header
+    ws.mergeCells("A1:I3"); set("A1", "Time Sheet", F(20));
+    [1, 2, 3].forEach((r, i) => (ws.getRow(r).height = [15, 12, 15.75][i]));
+    frame(4, 6);
+    ws.mergeCells("B4:E4"); ws.mergeCells("B5:E5"); ws.mergeCells("F4:G6"); ws.mergeCells("A6:E6");
+    set("A4", "LOCATION: ", F(9), { fill: "FFBFBFBF" }); set("B4", sheetLocation(id, month), F(16, "FF00B0F0"));
+    set("A5", "NAME:  ", F(9), { fill: "FFBFBFBF" }); set("B5", (u.name || "").toUpperCase(), F(16, "FF7030A0"));
+    set("H4", "POSITION: ", F(9), { fill: "FFBFBFBF" }); set("I4", u.role === "supervisor" ? "SUPERVISOR" : "CNG  TECHNICIAN", F(14, "FF548DD4"));
+    set("H5", "Contact", F(9), { fill: "FFBFBFBF" }); set("I5", u.mobile ? (/^\d+$/.test(u.mobile) ? Number(u.mobile) : u.mobile) : "", F(14, "FF548DD4"), { fmt: "0" });
+    set("H6", "Month ", F(9), { fill: "FFBFBFBF" }); const [yy, mm] = month.split("-").map(Number); set("I6", new Date(Date.UTC(yy, mm - 1, 1)), F(14, "FF548DD4"), { fmt: "mmm-yy" });
+    [4, 5, 6].forEach((r, i) => (ws.getRow(r).height = [32.25, 30.75, 29.25][i]));
+    // column heads
+    frame(7, 8);
+    ["C", "D", "E", "F", "G", "H"].forEach((col) => ws.mergeCells(col + "7:" + col + "8"));
+    const grey = { fill: "FFC0C0C0" };
+    set("A7", "Date", F(9), grey); set("A8", "Month", F(9), grey); set("B7", "", F(9), grey); set("B8", "Day", F(9), grey);
+    set("C7", "On Duty", F(9), grey); set("D7", "Off Duty", F(9), grey); set("E7", "Start Time", F(9), grey); set("F7", "Finish Time", F(9), grey);
+    set("G7", "Hour Worked ", F(9), grey); set("H7", "O.T by direct manager", F(9), grey); set("I7", "Remarks ", F(9)); set("I8", "Work Done", F(9));
+    ws.getRow(7).height = 29.25; ws.getRow(8).height = 29.25;
+    // days
+    const rows = sheetDays(id, month); let r = 9; let tH = 0, tO = 0;
+    const hm = (s) => { if (!s) return ""; const [h, mi] = s.split(":").map(Number); return (h * 60 + mi) / 1440; };
+    rows.forEach((x) => {
+      const [dy, dm, dd] = x.date.split("-").map(Number);
+      set("A" + r, new Date(Date.UTC(dy, dm - 1, dd)), F(16), { fmt: "d-mmm" });
+      set("B" + r, x.wd); set("C" + r, x.on ? "On Duty" : x.off === "Off Duty" ? "Off Duty" : x.off || "");
+      const offRow = !x.on && !x.blank;
+      set("D" + r, "", F(9), offRow ? { fill: "FFFFFF00" } : undefined);
+      set("E" + r, x.start ? hm(x.start) : "", F(9), Object.assign({ fmt: "h:mm" }, offRow ? { fill: "FFFFFF00" } : {}));
+      set("F" + r, x.end ? hm(x.end) : x.start ? "open" : "", F(9), Object.assign({ fmt: "h:mm" }, offRow ? { fill: "FFFFFF00" } : {}));
+      set("G" + r, x.hours, F(9), offRow ? { fill: "FFFFFF00" } : undefined);
+      set("H" + r, x.ot, F(9), offRow && !x.ot ? { fill: "FFFFFF00" } : undefined);
+      set("I" + r, x.remarks, F(9), offRow && !x.remarks ? { fill: "FFFFFF00" } : undefined);
+      ws.getRow(r).height = 57; tH += Number(x.hours) || 0; tO += Number(x.ot) || 0; r++;
+    });
+    // total row
+    set("A" + r, "Total", F(11)); ["B", "C", "D", "E", "F"].forEach((c) => set(c + r, "")); set("C" + r, rows.filter((x) => x.on).length + " days", F(9));
+    set("G" + r, r2(tH), F(11)); set("H" + r, r2(tO) || "-", F(11)); set("I" + r, "", F(9)); ws.getRow(r).height = 30; r++;
+    // footer
+    r++;
+    const fb = { top: med, left: med, bottom: med, right: med };
+    ws.mergeCells(`A${r}:C${r + 1}`); ws.mergeCells(`D${r}:E${r + 1}`); ws.mergeCells(`F${r}:I${r + 1}`);
+    const ft = (ref, v, align) => { const c = ws.getCell(ref); c.value = v; c.font = F(9, null, true, "Calibri"); c.alignment = { horizontal: align, vertical: "top", wrapText: true }; c.border = fb; };
+    ft("A" + r, "Submit By:", "left"); ft("D" + r, u.name || "", "center"); ft("F" + r, "Checked By:", "left");
+    ws.getRow(r).height = 12; ws.getRow(r + 1).height = 18; r += 2;
+    ws.mergeCells(`A${r}:A${r + 1}`); ws.mergeCells(`B${r}:I${r + 1}`);
+    ft("A" + r, "Comments:", "left"); const cm = ws.getCell("B" + r); cm.value = " 24/7 On Call Duty "; cm.font = F(14, "FFFF0000", true, "Calibri"); cm.alignment = { horizontal: "center", vertical: "middle" }; cm.border = fb;
+    ws.getRow(r).height = 12; ws.getRow(r + 1).height = 26.25;
+    ws.pageSetup.printArea = "A1:I" + (r + 1);
+  }
+  async function exportXls(ids, month) {
+    toast("Preparing Excel…");
+    if (!(await loadExcel())) { toast("Excel tool could not load. Check the internet connection and try again.", true); return; }
+    try {
+      const wb = new ExcelJS.Workbook(); wb.creator = "CEG Field Duty"; wb.created = new Date();
+      ids.filter((id) => user(id)).forEach((id) => fillSheet(wb, id, month));
+      const buf = await wb.xlsx.writeBuffer();
+      const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+      const mon = parse(month + "-01").toLocaleDateString("en-GB", { month: "short", year: "2-digit" }).replace(" ", "");
+      const fname = ids.length === 1 ? `${user(ids[0]).name} - Time sheet - ${mon}.xlsx` : `CEG Time sheets - ${mon}.xlsx`;
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = fname; document.body.appendChild(a); a.click();
+      setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+      toast("Downloaded: " + fname);
+    } catch (e) { toast("Excel export failed: " + (e.message || e), true); }
+  }
+
 
   /* ================= account ================= */
   function openAccount() {
@@ -1745,6 +1854,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "setPin": { const v = (document.querySelector(`[data-pinfor="${id}"]`)?.value || "").trim(); if (!/^\d{4}$/.test(v)) { toast("PIN must be 4 digits", true); return; } api("setPin", { id, pin: v }); return; }
       case "hereGps": { try { busy(true); const c = await getPosition(); busy(false); api("siteUpdate", { id, field: "latlng", lat: c.latitude, lng: c.longitude }); toast("Accuracy about " + Math.round(c.accuracy) + " m"); } catch (err) { busy(false); toast(err.message, true); } return; }
       case "print": drawQrs(); setTimeout(() => window.print(), 300); return;
+      case "xlsMine": exportXls([viewer], id); return;
       case "xlsOne": exportXls([ui.tsTech], ui.tsMonth); return;
       case "xlsAll": exportXls([...sups(), ...techs()].map((u) => u.id), ui.tsMonth); return;
       case "scan": if (QR()) { openScan(id); return; } if (!arm()) return; markVisited(id); return;
