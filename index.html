@@ -139,6 +139,9 @@ td { padding: 8px 10px; border-top: 1px solid var(--line); vertical-align: middl
 td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 tr.off td { color: var(--muted); }
 tr.sel td { background: var(--blue-soft); }
+.slot .supsel { margin-top: 4px; font-size: .9rem; }
+.slot .btn.sm[data-ssupadd], .slot .btn.sm[data-esupadd] { justify-self: start; margin-top: 4px; }
+.supadd { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
 tfoot td { font-weight: 600; background: var(--sunk); }
 td input, td select { padding: 5px 8px; }
 .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px 16px; }
@@ -397,7 +400,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     } catch (e) { if (!opt.quietError) toast(e.message || "Could not reach the server.", true); return { ok: false, error: e.message || "Could not reach the server." }; }
     finally { bg ? bgBusy(false) : busy(false); }
   }
-  const NEED_SERVER = "2026-11-16a";
+  const NEED_SERVER = "2026-11-17a";
+  const SUPPORT_MAX = 1; // support technicians per post (same as server)
   const serverOld = () => S && (!S.serverVersion || S.serverVersion < NEED_SERVER);
   const QR = () => S && S.visitMode === "qr"; // false = simple "Visited" tap (no QR yet)
   let pendingLink = null;
@@ -462,9 +466,14 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     if (!r) return { type: "none" };
     if (r.off.includes(tech)) return { type: "off", r, fallback };
     const sl = Object.keys(r.assign).find((k) => r.assign[k] === tech);
+    if (!sl) { const sp = supportSlotOf(r, tech); if (sp && slot(sp)) return { type: "duty", slot: slot(sp), support: true, lead: r.assign[sp] || "", r, fallback, monitoring: r.monitoring === tech }; }
     if (!sl) return { type: "none", r, fallback };
     return { type: "duty", slot: slot(sl), r, fallback, monitoring: r.monitoring === tech };
   }
+  /* support duty: second technician on a post */
+  const supportSlotOf = (r, tech) => Object.keys(r.support || {}).find((k) => (r.support[k] || []).includes(tech)) || "";
+  const supportIds = (r) => Object.values(r.support || {}).flat().filter(Boolean);
+  const supportNames = (r, sid) => ((r.support || {})[sid] || []).map(nm).join(", ");
   function myAssignment(id, date) {
     const u = user(id);
     if (u?.role === "supervisor") return { type: "duty", slot: { id: "sup:" + id, name: "Site visits", tag: "", zone: null, shift: "Day", sites: supSites(id) }, monitoring: false, fallback: false };
@@ -484,7 +493,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const ot = Math.max(0, dutyH - 9) + emH;
     const km = (d && d.driver && d.kmEnd != null && d.kmStart != null ? d.kmEnd - d.kmStart : 0) + (d && d.kmPrev || 0);
     const sl = slotOf(d); const supDuty = d && String(d.slot).startsWith("sup:");
-    const covN = d && sl ? (supDuty ? new Set(d.visits.map((v) => v.site)).size : new Set(d.visits.map((v) => v.site).filter((x) => sl.sites.includes(x))).size) : 0;
+    const covN = d && sl ? (supDuty ? new Set(d.visits.map((v) => v.site)).size : new Set(d.visits.concat(d.mateVisits || []).map((v) => v.site).filter((x) => sl.sites.includes(x))).size) : 0;
     const extra = d && sl && !supDuty && sl.shift === "Night" ? new Set(d.visits.map((v) => v.site).filter((x) => !sl.sites.includes(x))).size : 0;
     return { d, dutyH, emH, ot, km, covN, extra, covT: sl && !supDuty ? sl.sites.length : 0 };
   }
@@ -667,18 +676,29 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     return sups().map((sp) => {
       const { r, fallback } = effectiveRoster(sp.id, date);
       const pend = S.rosters[date + "|" + sp.id];
+      const canSupport = date === TODAY() && !!r && (me().role === "engineer" || viewer === sp.id);
       const head = `<div class="row between"><h2>${esc(sp.name)}'s team${onLeave(sp.id, date) ? ` <span class="pill red">${esc(leaveName(sp.id, date))} – Engineer covering</span>` : ""}</h2>${r ? (fallback ? `<span class="pill amber">Last approved: ${fmtD(r.date)}</span>` : `<span class="pill green">Approved</span>`) : `<span class="pill">No approved roster</span>`}</div>
         ${fallback && pend ? `<p class="small muted">Roster for ${fmtD(date)} is ${pend.status === "submitted" ? "waiting for Engineer approval" : "in draft"}. Technicians follow the last approved roster.</p>` : ""}`;
       if (!r) return `<section class="card">${head}<p class="empty">No roster yet.</p></section>`;
       const zones = S.zones.filter((z) => supSlots(sp.id).some((s) => s.zone === z.id));
       const zoneHTML = zones.map((z) => `<div class="zone"><h3>${esc(z.name)}</h3>${supSlots(sp.id).filter((s) => s.zone === z.id).map((s) => {
-        const t = r.assign[s.id];
-        return `<div class="slot${t ? "" : " empty"}"><span class="nm"><span>${esc(s.name)}${s.shift === "Night" ? ' <span class="pill blue">Night</span>' : ""}</span>${tagHTML(s)}</span>
+        const t = r.assign[s.id]; const spl = (r.support || {})[s.id] || [];
+        return `<div class="slot${t ? "" : " empty"}"><span class="nm"><span>${esc(s.name)}${s.shift === "Night" ? ' <span class="pill blue">Night</span>' : ""}${spl.length ? ` <span class="pill green">+${spl.length}</span>` : ""}</span>${tagHTML(s)}</span>
           <span class="who">${t ? `<b>${esc(nm(t))}</b>${r.monitoring === t ? ' <span class="pill green">Monitoring in-charge</span>' : ""}` : "Not assigned"}</span>
+          ${spl.map((x) => `<span class="who small">Support: <b>${esc(nm(x))}</b>${r.monitoring === x ? ' <span class="pill green">Monitoring in-charge</span>' : ""}${canSupport && r.date === date ? ` <button type="button" class="btn sm" data-act="supDel" data-sup="${sp.id}" data-id="${x}" aria-label="Remove support ${esc(nm(x))}">✕</button>` : ""}</span>`).join("")}
           <span class="sites">${s.sites.map((x) => esc(site(x)?.name)).join(" · ")}</span></div>`;
       }).join("")}</div>`).join("");
       const offs = r.off.map((t) => `<span class="pill amber">${esc(nm(t))} · Off</span>`).concat(techs(sp.id).filter((t) => onLeave(t.id, date)).map((t) => `<span class="pill red">${esc(t.name)} · ${esc(leaveName(t.id, date))}</span>`));
-      return `<section class="card">${head}<div class="cols3">${zoneHTML}</div><div class="row"><span class="label">Off / Leave</span>${offs.join("") || '<span class="muted small">None</span>'}</div></section>`;
+      const supForm = canSupport ? (() => {
+        const used = new Set([...Object.values(r.assign), ...supportIds(r)].filter(Boolean));
+        const free = techs(sp.id).filter((t) => !used.has(t.id) && !onLeave(t.id, date));
+        const posts = supSlots(sp.id).filter((s) => r.assign[s.id] && ((r.support || {})[s.id] || []).length < SUPPORT_MAX);
+        if (!posts.length || !free.length) return `<p class="small muted supadd">Add support for today: ${!posts.length ? "no post with a main technician is free for support." : "all technicians are already placed or on leave."}</p>`;
+        return `<form class="form-inline supadd" data-sup="${sp.id}"><span class="label full">Add support for today</span>
+          <label class="field"><span>Post</span><select name="slot" required><option value="">Select post</option>${posts.map((s) => `<option value="${s.id}">${esc(s.name)}${s.tag ? " · " + esc(s.tag) : ""} (${esc(nm(r.assign[s.id]))})</option>`).join("")}</select></label>
+          <label class="field"><span>Support technician</span><select name="tech" required><option value="">Select technician</option>${free.map((t) => `<option value="${t.id}">${esc(t.name)}${r.off.includes(t.id) ? " (off today)" : ""}</option>`).join("")}</select></label>
+          <button class="btn primary">Add support</button></form><p class="small muted">No re-approval needed. The technician, the main technician${me().role === "supervisor" ? " and the Engineer" : " and the supervisor"} are told.</p>`; })() : "";
+      return `<section class="card">${head}<div class="cols3">${zoneHTML}</div><div class="row"><span class="label">Off / Leave</span>${offs.join("") || '<span class="muted small">None</span>'}</div>${supForm}</section>`;
     }).join("") || '<p class="empty">No supervisors yet.</p>';
   }
   function boardView() {
@@ -692,10 +712,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const ex = S.rosters[date + "|" + sup];
     if (ex) return JSON.parse(JSON.stringify(ex));
     const prev = Object.values(S.rosters).filter((x) => x.sup === sup && x.date < date).sort((a, b) => b.date.localeCompare(a.date))[0];
-    const d = { key: date + "|" + sup, date, sup, status: "draft", assign: prev ? { ...prev.assign } : {}, monitoring: prev ? prev.monitoring : "", off: prev ? [...prev.off] : [], prefilledFrom: prev ? prev.date : null };
-    techs(sup).forEach((t) => { if (onLeave(t.id, date)) { d.off = d.off.filter((x) => x !== t.id); Object.keys(d.assign).forEach((k) => { if (d.assign[k] === t.id) d.assign[k] = ""; }); if (d.monitoring === t.id) d.monitoring = ""; } });
+    const d = { key: date + "|" + sup, date, sup, status: "draft", assign: prev ? { ...prev.assign } : {}, monitoring: prev ? prev.monitoring : "", off: prev ? [...prev.off] : [], support: prev ? JSON.parse(JSON.stringify(prev.support || {})) : {}, prefilledFrom: prev ? prev.date : null };
+    techs(sup).forEach((t) => { if (onLeave(t.id, date)) { d.off = d.off.filter((x) => x !== t.id); Object.keys(d.assign).forEach((k) => { if (d.assign[k] === t.id) d.assign[k] = ""; }); dropSupport(d, t.id); if (d.monitoring === t.id) d.monitoring = ""; } });
     return d;
   }
+  function dropSupport(r, id) { r.support = r.support || {}; Object.keys(r.support).forEach((k) => { r.support[k] = (r.support[k] || []).filter((x) => x !== id); if (!r.support[k].length) delete r.support[k]; }); }
   function validate(r) {
     const e = []; const used = {};
     supSlots(r.sup).forEach((s) => {
@@ -703,19 +724,26 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       if (s.mandatory && !t) e.push(`${s.name} is mandatory.`);
       if (t) { if (used[t]) e.push(`${nm(t)} is placed in two slots.`); used[t] = 1; if (r.off.includes(t)) e.push(`${nm(t)} is marked off but also placed in ${s.name}.`); if (onLeave(t, r.date)) e.push(`${nm(t)} is on approved leave.`); }
     });
+    Object.keys(r.support || {}).forEach((k) => {
+      const l = r.support[k] || []; const s = slot(k); if (!l.length || !s) return;
+      if (!r.assign[k]) e.push(`${s.name} has support but no main technician. Make ${nm(l[0])} the main technician.`);
+      if (l.length > SUPPORT_MAX) e.push(`${s.name}: only ${SUPPORT_MAX} support technician allowed.`);
+      l.forEach((t) => { if (used[t]) e.push(`${nm(t)} is placed in two slots.`); used[t] = 1; if (r.off.includes(t)) e.push(`${nm(t)} is marked off but also support in ${s.name}.`); if (onLeave(t, r.date)) e.push(`${nm(t)} is on approved leave.`); });
+    });
     if (!r.monitoring) e.push("Monitoring in-charge is mandatory.");
-    else if (!Object.values(r.assign).includes(r.monitoring)) e.push("Monitoring in-charge must be one of the technicians on duty.");
+    else if (![...Object.values(r.assign), ...supportIds(r)].includes(r.monitoring)) e.push("Monitoring in-charge must be one of the technicians on duty.");
     return [...new Set(e)];
   }
   function editorHTML(r, prefix) {
     const tlist = techs(r.sup);
     const zones = S.zones.filter((z) => supSlots(r.sup).some((s) => s.zone === z.id));
     const opt = (sel, allowEmpty) => `<option value="">${allowEmpty ? "Empty" : "Select technician"}</option>` + tlist.map((t) => { const lv = onLeave(t.id, r.date); return `<option value="${t.id}" ${t.id === sel ? "selected" : ""} ${lv ? "disabled" : ""}>${esc(t.name)}${lv ? " (" + leaveName(t.id, r.date).toLowerCase() + ")" : r.off.includes(t.id) ? " (off)" : ""}</option>`; }).join("");
-    const onDuty = Object.values(r.assign).filter(Boolean);
+    const onDuty = [...Object.values(r.assign).filter(Boolean), ...supportIds(r)];
     const unplaced = tlist.filter((t) => !onDuty.includes(t.id) && !r.off.includes(t.id) && !onLeave(t.id, r.date));
     return `<div class="cols3">${zones.map((z) => `<div class="zone"><h3>${esc(z.name)}</h3>${supSlots(r.sup).filter((s) => s.zone === z.id).map((s) => `
         <label class="slot"><span class="nm"><span>${esc(s.name)}${s.mandatory ? ' <span class="pill red">Must</span>' : ""}</span>${tagHTML(s)}</span>
         <select data-${prefix}slot="${s.id}">${opt(r.assign[s.id] || "", !s.mandatory)}</select>
+        ${(() => { const cur = ((r.support || {})[s.id] || [])[0] || ""; return cur || ui.supOpen === prefix + s.id ? `<select data-${prefix}sup="${s.id}" class="supsel" aria-label="Support for ${esc(s.name)}"><option value="">No support</option>${tlist.map((t) => { const lv = onLeave(t.id, r.date); return `<option value="${t.id}" ${t.id === cur ? "selected" : ""} ${lv ? "disabled" : ""}>Support: ${esc(t.name)}${lv ? " (" + leaveName(t.id, r.date).toLowerCase() + ")" : r.off.includes(t.id) ? " (off)" : ""}</option>`; }).join("")}</select>` : `<button type="button" class="btn sm" data-${prefix}supadd="${s.id}">+ Add support</button>`; })()}
         <span class="sites">${s.shift === "Night" ? "19:00–07:00 · " : "07:00–19:00 · "}${s.sites.length} sites</span></label>`).join("")}</div>`).join("")}</div>
       <div class="grid2">
         <label class="field"><span>Monitoring in-charge (extra duty) · Must</span><select data-${prefix}mon="1"><option value="">Select from technicians on duty</option>${onDuty.map((t) => `<option value="${t}" ${t === r.monitoring ? "selected" : ""}>${esc(nm(t))}</option>`).join("")}</select></label>
@@ -725,10 +753,12 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   }
   function applyEditorEvent(e, r, prefix) {
     const t = e.target;
-    if (t.dataset[prefix + "slot"] !== undefined) { r.assign[t.dataset[prefix + "slot"]] = t.value; if (t.value) r.off = r.off.filter((x) => x !== t.value); if (r.monitoring && !Object.values(r.assign).includes(r.monitoring)) r.monitoring = ""; return true; }
+    if (t.dataset[prefix + "slot"] !== undefined) { r.assign[t.dataset[prefix + "slot"]] = t.value; if (t.value) { r.off = r.off.filter((x) => x !== t.value); dropSupport(r, t.value); } if (r.monitoring && ![...Object.values(r.assign), ...supportIds(r)].includes(r.monitoring)) r.monitoring = ""; return true; }
     if (t.dataset[prefix + "mon"] !== undefined) { r.monitoring = t.value; return true; }
+    if (t.dataset[prefix + "sup"] !== undefined) { const k = t.dataset[prefix + "sup"]; dropSupport(r, t.value); r.support = r.support || {}; if (t.value) { r.support[k] = [t.value]; r.off = r.off.filter((x) => x !== t.value); Object.keys(r.assign).forEach((q) => { if (r.assign[q] === t.value) r.assign[q] = ""; }); } else delete r.support[k]; ui.supOpen = null; if (r.monitoring && ![...Object.values(r.assign), ...supportIds(r)].includes(r.monitoring)) r.monitoring = ""; return true; }
+    const sa = t.closest("[data-" + prefix + "supadd]"); if (sa) { ui.supOpen = prefix + sa.dataset[prefix + "supadd"]; return true; }
     const c = t.closest("[data-" + prefix + "off]");
-    if (c) { const id = c.dataset[prefix + "off"]; if (r.off.includes(id)) r.off = r.off.filter((x) => x !== id); else { r.off.push(id); Object.keys(r.assign).forEach((k) => { if (r.assign[k] === id) r.assign[k] = ""; }); if (r.monitoring === id) r.monitoring = ""; } return true; }
+    if (c) { const id = c.dataset[prefix + "off"]; if (r.off.includes(id)) r.off = r.off.filter((x) => x !== id); else { r.off.push(id); Object.keys(r.assign).forEach((k) => { if (r.assign[k] === id) r.assign[k] = ""; }); dropSupport(r, id); if (r.monitoring === id) r.monitoring = ""; } return true; }
     return false;
   }
 
@@ -766,7 +796,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     </div>`;
   }
   function boardPreview(r) {
-    return `<div class="cols3">${supSlots(r.sup).map((s) => `<div class="slot"><span class="nm"><span>${esc(s.name)}</span>${tagHTML(s)}</span><span class="who">${r.assign[s.id] ? `<b>${esc(nm(r.assign[s.id]))}</b>${r.monitoring === r.assign[s.id] ? ' <span class="pill green">Monitoring</span>' : ""}` : "Not assigned"}</span></div>`).join("")}</div>
+    return `<div class="cols3">${supSlots(r.sup).map((s) => `<div class="slot"><span class="nm"><span>${esc(s.name)}</span>${tagHTML(s)}</span><span class="who">${r.assign[s.id] ? `<b>${esc(nm(r.assign[s.id]))}</b>${r.monitoring === r.assign[s.id] ? ' <span class="pill green">Monitoring</span>' : ""}` : "Not assigned"}</span>${supportNames(r, s.id) ? `<span class="who small">Support: <b>${esc(supportNames(r, s.id))}</b></span>` : ""}</div>`).join("")}</div>
       <p class="small muted">Off: ${r.off.map((t) => esc(nm(t))).join(", ") || "none"}</p>`;
   }
   function supApprovals() {
@@ -794,7 +824,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   function teamTable(list) {
     return `<div class="tablewrap"><table><thead><tr><th>Name</th><th>Today</th><th>Mobile</th><th>Phone</th></tr></thead><tbody>${list.map((t) => {
       const a = assignmentFor(t.id, TODAY());
-      const st = !a ? "—" : a.type === "duty" ? esc(a.slot.name) + (a.monitoring ? " + Monitoring" : "") : a.type === "off" ? "Off" : a.type === "leave" ? "Leave" : "Not placed";
+      const st = !a ? "—" : a.type === "duty" ? (a.support ? "Support – " : "") + esc(a.slot.name) + (a.monitoring ? " + Monitoring" : "") : a.type === "off" ? "Off" : a.type === "leave" ? "Leave" : "Not placed";
       return `<tr><td>${esc(t.name)}</td><td>${st}</td><td class="mono">${esc(t.mobile) || '<span class="muted">—</span>'}</td><td>${devPill(t.device)}</td></tr>`;
     }).join("")}</tbody></table></div>`;
   }
@@ -831,7 +861,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
           : d ? (d.end ? `<span class="pill">Closed ${d.end}</span>` : `<span class="pill green">On duty since ${d.start}</span>`)
           : a?.type === "duty" ? (a.slot ? `<span class="pill amber">Not started</span>` : `<span class="pill red">Post missing in roster</span>`) : `<span class="pill">${a?.type === "off" ? "Off" : a?.type === "leave" ? "Leave" : "Not on roster"}</span>`;
         const why = [stale ? `duty of ${fmtD(stale.date, { day: "numeric", month: "short" })} not ended` : "", d && d.note ? d.note : "", a?.fallback && !d ? "using last approved roster" : ""].filter(Boolean).join(" · ");
-        const sub = t.role === "supervisor" ? "Supervisor" + (d && d.visits.length ? " · last scan " + [...d.visits].sort((x, y) => y.time.localeCompare(x.time))[0].time : "") : (d ? esc(slotOf(d)?.name || "") : a?.type === "duty" && a.slot ? esc(a.slot.name) + (a.monitoring ? " · Monitoring" : "") : "") + (d ? " · " + d.visits.length + " site(s)" : "") + (why ? ` · <span class="err">${esc(why)}</span>` : "");
+        const sub = t.role === "supervisor" ? "Supervisor" + (d && d.visits.length ? " · last scan " + [...d.visits].sort((x, y) => y.time.localeCompare(x.time))[0].time : "") : (d ? (d.role === "support" ? "Support – " : "") + esc(slotOf(d)?.name || "") : a?.type === "duty" && a.slot ? (a.support ? "Support – " : "") + esc(a.slot.name) + (a.monitoring ? " · Monitoring" : "") : "") + (d ? " · " + d.visits.length + " site(s)" : "") + (why ? ` · <span class="err">${esc(why)}</span>` : "");
         return `<div class="visit"><span><b>${esc(t.name)}</b><br><span class="small muted">${sub}</span></span>${st}</div>`;
       }).join("")}</section>
       <section class="card"><h2>Recent log</h2>${S.logs.slice(0, 8).map(logRow).join("") || '<p class="empty">No entries yet.</p>'}</section></div></div>`;
@@ -945,7 +975,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       const wd = c.d ? (c.d.work || []).map((w) => `${site(w.site)?.name}: ${w.desc}`).join("; ") : "";
       const sl = slotOf(c.d);
       const edited = (S.tsEdits || []).filter((x) => x.tech === tech && x.date === date).length;
-      rows.push(`<tr class="${c.d ? "" : "off"}${ui.tsEditDate === date && editable ? " sel" : ""}"><td class="mono">${fmtD(date, { day: "2-digit", month: "short" })}${edited ? ` <span class="pill amber" title="${edited} change(s) recorded">edited</span>` : ""}${editable && a?.type !== "leave" ? `<br><button type="button" class="btn sm" data-act="tsEditOpen" data-id="${date}">${c.d ? "Edit" : "Add"}</button>` : ""}</td><td>${parse(date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td>${status}</td><td>${sl ? sl.shift : ""}</td><td>${sl ? esc(sl.tag || sl.name) + (sl.zone ? " · " + esc(zone(sl.zone)?.name) : "") : ""}</td><td class="num">${c.d?.start || ""}</td><td class="num">${c.d?.end || (c.d ? "open" : "")}</td><td class="num">${c.dutyH ? fmtH(c.dutyH) : ""}</td><td class="num">${c.emH ? fmtH(c.emH) : ""}</td><td class="num">${c.ot ? fmtH(c.ot) : ""}</td><td>${c.d ? (!drove(c.d) ? '<span class="pill">Passenger</span>' : '<span class="pill blue">Driver</span>') : ""}</td><td class="num">${c.d && drove(c.d) ? (c.d.end ? c.km : "open") : ""}</td><td class="num">${c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) + (c.extra ? " +" + c.extra : "") : ""}</td><td class="wd">${esc(wd)}</td></tr>`);
+      rows.push(`<tr class="${c.d ? "" : "off"}${ui.tsEditDate === date && editable ? " sel" : ""}"><td class="mono">${fmtD(date, { day: "2-digit", month: "short" })}${edited ? ` <span class="pill amber" title="${edited} change(s) recorded">edited</span>` : ""}${editable && a?.type !== "leave" ? `<br><button type="button" class="btn sm" data-act="tsEditOpen" data-id="${date}">${c.d ? "Edit" : "Add"}</button>` : ""}</td><td>${parse(date).toLocaleDateString("en-GB", { weekday: "short" })}</td><td>${status}</td><td>${sl ? sl.shift : ""}</td><td>${sl ? (c.d?.role === "support" ? '<span class="pill green">Support</span> ' : "") + esc(sl.tag || sl.name) + (sl.zone ? " · " + esc(zone(sl.zone)?.name) : "") : ""}</td><td class="num">${c.d?.start || ""}</td><td class="num">${c.d?.end || (c.d ? "open" : "")}</td><td class="num">${c.dutyH ? fmtH(c.dutyH) : ""}</td><td class="num">${c.emH ? fmtH(c.emH) : ""}</td><td class="num">${c.ot ? fmtH(c.ot) : ""}</td><td>${c.d ? (!drove(c.d) ? '<span class="pill">Passenger</span>' : '<span class="pill blue">Driver</span>') : ""}</td><td class="num">${c.d && drove(c.d) ? (c.d.end ? c.km : "open") : ""}</td><td class="num">${c.d ? (c.covT ? c.covN + "/" + c.covT : c.covN) + (c.extra ? " +" + c.extra : "") : ""}</td><td class="wd">${esc(wd)}</td></tr>`);
     }
     return `<div class="tablewrap"><table><thead><tr><th>Date</th><th>Day</th><th>Status</th><th>Shift</th><th>Area · Zone</th><th class="num">Start</th><th class="num">Finish</th><th class="num">Hours</th><th class="num">Emerg.</th><th class="num">OT</th><th>Car</th><th class="num">Km</th><th class="num">Sites</th><th>Work done</th></tr></thead>
       <tbody>${rows.reverse().join("")}</tbody><tfoot><tr><td colspan="3">${on} duty day(s)</td><td colspan="4"></td><td class="num">${fmtH(tH)}</td><td class="num">${fmtH(tE)}</td><td class="num">${fmtH(tO)}</td><td></td><td class="num">${tK}</td><td class="num">${tS}</td><td></td></tr></tfoot></table></div>
@@ -1379,6 +1409,7 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const shownSlot = d ? slotOf(d) : (a && a.type === "duty" ? a.slot : null);
     if (shownSlot) hero = `<div class="phone-hero"><div class="row between"><span class="pill">${fmtD(d ? d.date : TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span>${a && a.fallback ? `<span class="pill">Last approved roster</span>` : ""}</div>
       <h2>${esc(shownSlot.name)} ${tagHTML(shownSlot)}</h2><p class="sub">${shownSlot.zone ? esc(zone(shownSlot.zone)?.name) + " · " : ""}${shownSlot.shift} shift ${shownSlot.shift === "Night" ? "19:00–07:00" : "07:00–19:00"} · ${shownSlot.sites.length} sites</p>
+      ${(d ? d.role === "support" : a && a.support) ? `<p><span class="pill" style="background:#69BD45;color:#0B2E12">Support duty</span> <span class="sub">${(() => { const lead = a && a.support && a.lead ? a.lead : d ? ((d.mates || []).find((m) => m.role !== "support") || {}).tech : ""; return lead ? "with " + esc(nm(lead)) : ""; })()}</span></p>` : (() => { const sp = d ? (d.mates || []).filter((m) => m.role === "support").map((m) => m.tech) : a && a.type === "duty" && a.r ? ((a.r.support || {})[a.slot.id] || []) : []; return sp.length ? `<p><span class="pill">Support today: ${esc(sp.map(nm).join(", "))}</span></p>` : ""; })()}
       ${a && a.monitoring ? '<p><span class="pill" style="background:#69BD45;color:#0B2E12">Monitoring in-charge today</span></p>' : ""}</div>`;
     else hero = `<div class="phone-hero"><span class="pill">${fmtD(TODAY(), { weekday: "long", day: "numeric", month: "short" })}</span><h2>${a?.type === "off" ? "Off duty today" : a?.type === "leave" ? "On " + esc(leaveName(viewer, TODAY()).toLowerCase()) + " today" : "Not on today's roster"}</h2><p class="sub">You can still record emergency duty from the Emergency tab.</p></div>`;
     const stale = staleDutyOf(viewer);
@@ -1390,8 +1421,9 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     hero = pushCard() + hero + staleCard + openJobsCard();
     if (!shownSlot && !offRoster) return `<div class="stack narrow">${hero}</div>`;
     if (!d) {
-      const postPick = offRoster ? `<label class="field full"><span>Post you are covering</span><select id="dsSlot" required><option value="">Select post</option>${S.slots.map((x) => `<option value="${x.id}">${esc(x.name)}${x.tag ? " · " + esc(x.tag) : ""}</option>`).join("")}</select></label>` : "";
-      return `<div class="stack narrow">${hero}<form class="card" id="fStart"><h2>${offRoster ? "Start duty (not on today's roster)" : "Start duty"}</h2>${offRoster ? '<p class="small muted">You are not on today\'s roster. If you were called in, choose the post you are covering. The Engineer and your supervisor are told.</p>' : ""}
+      const postPick = offRoster ? `<label class="field full"><span>Post you are covering</span><select id="dsSlot" required><option value="">Select post</option>${S.slots.map((x) => `<option value="${x.id}">${esc(x.name)}${x.tag ? " · " + esc(x.tag) : ""}</option>`).join("")}</select></label>
+        <div class="field full"><span>Role on that post</span><div class="seg" role="radiogroup"><label><input type="radio" name="dsRole" value="main" checked> Main technician</label><label><input type="radio" name="dsRole" value="support"> Support</label></div></div>` : "";
+      return `<div class="stack narrow">${hero}<form class="card" id="fStart"><h2>${offRoster ? "Start duty (not on today's roster)" : "Start duty"}</h2>${offRoster ? '<p class="small muted">You are not on today\'s roster. If you were called in, choose the post you are covering. The Engineer and your supervisor are told.</p>' : ""}${!offRoster && a?.support ? `<p class="small muted">Support duty with ${esc(nm(a.lead))}. Use your own car details. Sites visited by either of you show as done for both.</p>` : ""}
         <div class="grid2">${postPick}<label class="field"><span>Start time</span><input type="time" id="dsStart" value="${nowHM()}" required></label>
         <label class="field"><span>Vehicle no.</span><input id="dsVeh" list="vehList" inputmode="numeric" maxlength="5" placeholder="5 digits" required></label>
         <div class="field full"><span>In the car today</span><div class="seg" role="radiogroup"><label><input type="radio" name="dsCar" value="drive" checked> I am driving</label><label><input type="radio" name="dsCar" value="pass"> Passenger</label></div></div>
@@ -1402,7 +1434,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
         <button class="btn go block">Start duty</button></form></div>`;
     }
     const sl = shownSlot;
-    const sitesHTML = sl.sites.map((sid) => { const x = site(sid); const v = d.visits.find((q) => q.site === sid);
+    const sitesHTML = sl.sites.map((sid) => { const x = site(sid); const v = d.visits.find((q) => q.site === sid); const mv = !v && (d.mateVisits || []).find((q) => q.site === sid);
+      if (mv) return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span><span class="done">✓ ${mv.time}<br><span class="small muted">by ${esc(nm(mv.by))}</span></span></div>`;
       return `<div class="visit"><span><b>${esc(x?.name)}</b><br><span class="small muted">${esc(x?.area)}</span></span>${v ? `<span class="done">✓ ${v.time}${v.gps && v.gps !== "verified" && QR() ? '<br><span class="small muted">GPS not set</span>' : ""}</span>` : d.end ? '<span class="muted small">Not visited</span>' : `<button class="btn sm primary" data-act="scan" data-id="${sid}">${QR() ? "Scan QR" : "✓ Visited"}</button>`}</div>`; }).join("");
     const c = dayCalc(viewer, d.date);
     const end = d.end ? `<div class="card"><h2>Duty closed</h2><div class="kv"><div><span class="label">Hours</span><b class="mono">${fmtH(c.dutyH)} h</b></div><div><span class="label">Overtime</span><b class="mono">${fmtH(c.ot)} h</b></div><div><span class="label">Km driven</span><b class="mono">${!drove(d) ? "Passenger" : c.km}</b></div><div><span class="label">Sites</span><b class="mono">${c.covN}/${c.covT}</b></div></div></div>`
@@ -1687,8 +1720,8 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
     const cm = e.target.closest("[data-cmode]"); if (cm) { const t = $("#chatTxt")?.value || ""; ui.chatMode = cm.dataset.cmode; render(); const n = $("#chatTxt"); if (n) { n.value = t; } if (ui.chatMode === "private") $("#chatTo")?.focus(); else n?.focus(); return; }
     const up = e.target.closest("[data-unpin]"); if (up) { setPins(pins().filter((x) => x !== up.dataset.unpin)); render(); return; }
     const g = e.target.closest("[data-goto]"); if (g) { if (ui.homeEdit && g.classList.contains("tile2")) return; tab = g.dataset.goto; LS.set("cfd.tab", tab); render(); window.scrollTo(0, 0); return; }
-    if (e.target.closest("#supEditor") && ui.draft && e.target.closest("[data-soff]")) { applyEditorEvent(e, ui.draft, "s"); render(); return; }
-    const rk = e.target.closest("[data-roster]"); if (rk && e.target.closest("[data-eoff]")) { applyEditorEvent(e, ui.engEdit[rk.dataset.roster], "e"); render(); return; }
+    if (e.target.closest("#supEditor") && ui.draft && e.target.closest("[data-soff],[data-ssupadd]")) { applyEditorEvent(e, ui.draft, "s"); render(); return; }
+    const rk = e.target.closest("[data-roster]"); if (rk && e.target.closest("[data-eoff],[data-esupadd]")) { applyEditorEvent(e, ui.engEdit[rk.dataset.roster], "e"); render(); return; }
     const b = e.target.closest("[data-act]"); if (!b) return;
     const id = b.dataset.id; const cmt = () => (document.querySelector(`[data-cmt="${id}"]`)?.value || "").trim();
     const arm = () => { if (b.dataset.armed) return true; b.dataset.armed = 1; b.classList.add("arm"); b.textContent = "Tap again to confirm"; setTimeout(() => { if (b.isConnected) { delete b.dataset.armed; b.classList.remove("arm"); } }, 4000); return false; };
@@ -1699,10 +1732,11 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
       case "logout": $("#dAcct").close(); await api("logout", {}, { silent: true }); logoutLocal(""); return;
       case "saveDraft": { const r = await api("saveRoster", { roster: ui.draft, submit: false }); if (r && r.ok) ui.draft = null; render(); return; }
       case "submitRoster": { if (validate(ui.draft).length) return; const r = await api("saveRoster", { roster: ui.draft, submit: true }); if (r && r.ok) ui.draft = null; render(); return; }
+      case "supDel": { const r = await api("removeSupport", { sup: b.dataset.sup, tech: id }); render(); return; }
       case "recall": { const r = await api("recallRoster", { key: ui.draft.key }); if (r && r.ok) ui.draft = null; render(); return; }
-      case "engPublish": { const r = ui.draft; if (!r || validate(r).length) return; const res = await api("approveRoster", { roster: { key: r.date + "|" + r.sup, date: r.date, sup: r.sup, assign: r.assign, monitoring: r.monitoring, off: r.off } }); if (res && res.ok) ui.draft = null; render(); return; }
+      case "engPublish": { const r = ui.draft; if (!r || validate(r).length) return; const res = await api("approveRoster", { roster: { key: r.date + "|" + r.sup, date: r.date, sup: r.sup, assign: r.assign, monitoring: r.monitoring, off: r.off, support: r.support || {} } }); if (res && res.ok) ui.draft = null; render(); return; }
       case "leaveCancel": if (!arm()) return; api("leaveCancel", { id }); return;
-      case "approveRoster": { const r = ui.engEdit[b.dataset.key]; if (validate(r).length) return; const res = await api("approveRoster", { roster: { key: r.key, assign: r.assign, monitoring: r.monitoring, off: r.off } }); if (res && res.ok) delete ui.engEdit[r.key]; render(); return; }
+      case "approveRoster": { const r = ui.engEdit[b.dataset.key]; if (validate(r).length) return; const res = await api("approveRoster", { roster: { key: r.key, assign: r.assign, monitoring: r.monitoring, off: r.off, support: r.support || {} } }); if (res && res.ok) delete ui.engEdit[r.key]; render(); return; }
       case "decide": { const ok = b.dataset.ok === "1"; const c = cmt(); if (!ok && !c) { toast("Add a comment to return it", true); return; } api("decide", { kind: b.dataset.kind, id, ok, comment: c }); return; }
       case "devOk": api("device", { id, ok: true }); return;
       case "devNo": api("device", { id, ok: false }); return;
@@ -1762,13 +1796,14 @@ footer.foot { padding-block: 0 30px; font-size: .8rem; color: var(--muted); }
   });
   document.addEventListener("submit", async (e) => {
     const f = e.target; if (f.id === "fLogin") return;
+    if (f.classList.contains("supadd")) { e.preventDefault(); const r = await api("addSupport", { sup: f.dataset.sup, slot: f.elements.slot.value, tech: f.elements.tech.value }); render(); return; }
     e.preventDefault();
     if (f.id === "fStart") {
       const veh = $("#dsVeh").value.trim(); const driver = document.querySelector('input[name="dsCar"]:checked').value === "drive";
       if (!/^\d{5}$/.test(veh)) { toast("Vehicle number must be 5 digits.", true); return; }
       if (driver && $("#dsKm").value === "") { toast("Enter opening km.", true); return; }
       if ($("#dsSlot") && !$("#dsSlot").value) { toast("Choose the post you are covering.", true); return; }
-      api("startDuty", { start: $("#dsStart").value, vehicle: veh, driver, coDriver: driver ? "" : $("#dsDrv").value, kmStart: driver ? +$("#dsKm").value : null, slot: $("#dsSlot") ? $("#dsSlot").value : "" });
+      api("startDuty", { start: $("#dsStart").value, vehicle: veh, driver, coDriver: driver ? "" : $("#dsDrv").value, kmStart: driver ? +$("#dsKm").value : null, slot: $("#dsSlot") ? $("#dsSlot").value : "", support: !!document.querySelector('input[name="dsRole"][value="support"]:checked') });
     } else if (f.id === "fSiteInfo") {
       if (!$("#siName").value.trim() || $("#siPhone").value.replace(/\D/g, "").length < 7) { toast("Name and a valid mobile number are required.", true); return; }
       await api("siteContactAdd", { site: f.dataset.id, name: $("#siName").value.trim(), designation: $("#siDesig").value.trim(), phone: $("#siPhone").value.trim(), note: $("#siNote").value.trim() });
